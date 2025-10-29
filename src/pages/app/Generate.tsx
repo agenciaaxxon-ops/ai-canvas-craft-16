@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Wand2, Upload, Loader2 } from "lucide-react";
 
 const Generate = () => {
@@ -14,6 +15,7 @@ const Generate = () => {
   const [scene, setScene] = useState("");
   const [loading, setLoading] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,6 +38,7 @@ const Generate = () => {
 
     setLoading(true);
     setGeneratedUrl("");
+    setErrorMessage("");
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -67,22 +70,27 @@ const Generate = () => {
 
       if (error) {
         console.error("Edge function error:", error);
-        const errorMessage = error.message || "Erro desconhecido ao gerar imagem";
-        
-        toast({
-          title: "Erro ao gerar imagem",
-          description: errorMessage,
-          variant: "destructive",
-        });
+        let specific = "";
+        try {
+          const anyErr: any = error as any;
+          const res = anyErr?.context?.response;
+          if (res && typeof res.json === "function") {
+            const body = await res.json();
+            specific = body?.error || body?.message || "";
+          }
+        } catch (e) {
+          console.warn("Failed to parse function error body", e);
+        }
+        const msg = specific || error.message || "Erro desconhecido ao gerar imagem";
+        setErrorMessage(msg);
+        toast({ title: "Erro ao gerar imagem", description: msg, variant: "destructive" });
         return;
       }
 
       if (!data?.generated_image_url) {
-        toast({
-          title: "Erro ao gerar imagem",
-          description: "Resposta inválida do servidor",
-          variant: "destructive",
-        });
+        const msg = "Resposta inválida do servidor";
+        setErrorMessage(msg);
+        toast({ title: "Erro ao gerar imagem", description: msg, variant: "destructive" });
         return;
       }
 
@@ -197,6 +205,12 @@ const Generate = () => {
         {/* Right Column - Result */}
         <div className="bg-card p-6 rounded-xl border border-border/40">
           <h3 className="text-xl font-semibold mb-4">Imagem Gerada</h3>
+          {errorMessage && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Erro ao gerar imagem</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
           <div className="aspect-square rounded-xl bg-muted/50 flex items-center justify-center overflow-hidden">
             {loading ? (
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
