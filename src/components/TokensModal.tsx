@@ -52,14 +52,22 @@ export function TokensModal({ open, onOpenChange }: TokensModalProps) {
     setSelectedProduct(productId);
 
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
+      const { data, error } = await supabase.functions.invoke("create-abacate-checkout", {
         body: { product_id: productId },
       });
 
       if (error) throw error;
 
       if (data?.checkout_url) {
-        window.location.href = data.checkout_url;
+        // Abrir em nova aba para facilitar o pagamento PIX
+        window.open(data.checkout_url, '_blank');
+        
+        toast({
+          title: "QR Code PIX gerado!",
+          description: "Uma nova aba foi aberta com o código PIX. Pague para receber seus créditos.",
+        });
+        
+        onOpenChange(false);
       } else {
         throw new Error("URL de checkout não retornada");
       }
@@ -70,6 +78,7 @@ export function TokensModal({ open, onOpenChange }: TokensModalProps) {
         description: error.message || "Não foi possível iniciar o processo de pagamento.",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
       setSelectedProduct(null);
     }

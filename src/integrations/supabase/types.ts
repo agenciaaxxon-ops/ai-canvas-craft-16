@@ -99,9 +99,11 @@ export type Database = {
       }
       purchases: {
         Row: {
+          abacate_billing_id: string | null
           amount_paid: number
           created_at: string
           id: string
+          pix_qr_code: string | null
           product_id: string
           status: string
           stripe_session_id: string
@@ -109,9 +111,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          abacate_billing_id?: string | null
           amount_paid: number
           created_at?: string
           id?: string
+          pix_qr_code?: string | null
           product_id: string
           status?: string
           stripe_session_id: string
@@ -119,9 +123,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          abacate_billing_id?: string | null
           amount_paid?: number
           created_at?: string
           id?: string
+          pix_qr_code?: string | null
           product_id?: string
           status?: string
           stripe_session_id?: string
