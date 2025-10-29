@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Wand2, Image, Plus } from "lucide-react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { TokensModal } from "@/components/TokensModal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const AppLayout = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -130,10 +131,19 @@ const AppLayout = () => {
 
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
-                  <span className="font-semibold">{profile?.token_balance ?? 0}</span>
-                  <span className="text-xs text-muted-foreground">tokens</span>
-                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 cursor-default">
+                        <span className="font-semibold">{profile?.token_balance ?? 0}</span>
+                        <span className="text-xs text-muted-foreground">imagens</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Imagens disponíveis para gerar</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Button
                   variant="ghost"
                   size="icon"

@@ -29,7 +29,7 @@ const Generate = () => {
     if (success === "true") {
       toast({
         title: "Compra realizada com sucesso!",
-        description: "Seus tokens foram adicionados à sua conta.",
+        description: "Seus créditos foram adicionados à sua conta.",
       });
       setSearchParams({});
     } else if (canceled === "true") {

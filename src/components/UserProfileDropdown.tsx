@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, CreditCard, Coins } from "lucide-react";
+import { LogOut, CreditCard, Image } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface UserProfileDropdownProps {
@@ -48,14 +48,14 @@ export function UserProfileDropdown({
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{email}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {tokenBalance} {tokenBalance === 1 ? "token" : "tokens"} disponíveis
+              {tokenBalance} {tokenBalance === 1 ? "imagem disponível" : "imagens disponíveis"}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onBuyTokens} className="cursor-pointer">
-          <Coins className="mr-2 h-4 w-4" />
-          Comprar Tokens
+          <Image className="mr-2 h-4 w-4" />
+          Comprar Imagens
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/app/plan")} className="cursor-pointer">
           <CreditCard className="mr-2 h-4 w-4" />

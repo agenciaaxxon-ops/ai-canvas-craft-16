@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Coins } from "lucide-react";
+import { Loader2, Image } from "lucide-react";
 
 interface Product {
   id: string;
@@ -80,11 +80,11 @@ export function TokensModal({ open, onOpenChange }: TokensModalProps) {
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Coins className="h-6 w-6 text-primary" />
-            Comprar Tokens
+            <Image className="h-6 w-6 text-primary" />
+            Comprar Créditos de Imagem
           </DialogTitle>
           <DialogDescription>
-            Escolha um plano e recarregue seus tokens para continuar gerando imagens incríveis!
+            Escolha um plano e recarregue seus créditos para continuar gerando imagens incríveis!
           </DialogDescription>
         </DialogHeader>
 
@@ -97,7 +97,7 @@ export function TokensModal({ open, onOpenChange }: TokensModalProps) {
               <div>
                 <h3 className="font-semibold text-lg">{product.name}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {product.tokens_granted} {product.tokens_granted === 1 ? "token" : "tokens"}
+                  {product.tokens_granted} {product.tokens_granted === 1 ? "imagem" : "imagens"}
                 </p>
               </div>
               <div className="flex items-center gap-4">

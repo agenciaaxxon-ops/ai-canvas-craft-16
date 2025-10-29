@@ -42,7 +42,7 @@ export default function Plan() {
     if (success === 'true') {
       toast({
         title: "Pagamento processado!",
-        description: "Seus tokens serão creditados em alguns instantes. Pode levar até 1 minuto.",
+        description: "Seus créditos serão adicionados em alguns instantes. Pode levar até 1 minuto.",
       });
       // Remove params after showing toast
       setSearchParams({});
@@ -161,20 +161,20 @@ export default function Plan() {
       <div className="flex flex-col gap-6">
         <div>
           <h1 className="text-3xl font-bold">Meu Plano</h1>
-          <p className="text-muted-foreground">Gerencie seus tokens e acompanhe suas compras</p>
+          <p className="text-muted-foreground">Gerencie seus créditos e acompanhe suas compras</p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tokens Disponíveis</CardTitle>
-              <Coins className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Imagens Disponíveis</CardTitle>
+              <Image className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{tokenBalance}</div>
               <p className="text-xs text-muted-foreground">
-                {tokenBalance === 1 ? "token restante" : "tokens restantes"}
+                {tokenBalance === 1 ? "imagem disponível" : "imagens disponíveis"}
               </p>
             </CardContent>
           </Card>
@@ -205,13 +205,13 @@ export default function Plan() {
         {/* Buy Tokens Button */}
         <Card>
           <CardHeader>
-            <CardTitle>Precisando de mais tokens?</CardTitle>
+            <CardTitle>Precisando de mais imagens?</CardTitle>
             <CardDescription>Recarregue agora e continue gerando imagens incríveis!</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => setShowTokensModal(true)} size="lg" className="w-full md:w-auto">
-              <Coins className="mr-2 h-4 w-4" />
-              Comprar Tokens
+              <Image className="mr-2 h-4 w-4" />
+              Comprar Créditos
             </Button>
           </CardContent>
         </Card>
@@ -246,7 +246,7 @@ export default function Plan() {
                     <div className="text-right">
                       <p className="font-semibold">R$ {(purchase.amount_paid / 100).toFixed(2)}</p>
                       <p className="text-sm text-muted-foreground">
-                        +{purchase.tokens_granted} {purchase.tokens_granted === 1 ? "token" : "tokens"}
+                        +{purchase.tokens_granted} {purchase.tokens_granted === 1 ? "imagem" : "imagens"}
                       </p>
                     </div>
                   </div>
