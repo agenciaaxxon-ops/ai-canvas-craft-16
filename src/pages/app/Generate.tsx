@@ -264,7 +264,7 @@ const Generate = () => {
         </div>
       </div>
 
-      <TokensModal open={showTokensModal} onOpenChange={setShowTokensModal} />
+      <TokensModal open={showTokensModal} onOpenChange={setShowTokensModal} insufficientTokens={true} />
     </div>
   );
 };

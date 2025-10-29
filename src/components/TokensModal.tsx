@@ -15,9 +15,10 @@ interface Product {
 interface TokensModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  insufficientTokens?: boolean;
 }
 
-export function TokensModal({ open, onOpenChange }: TokensModalProps) {
+export function TokensModal({ open, onOpenChange, insufficientTokens = false }: TokensModalProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
@@ -90,10 +91,13 @@ export function TokensModal({ open, onOpenChange }: TokensModalProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Image className="h-6 w-6 text-primary" />
-            Comprar Créditos de Imagem
+            {insufficientTokens ? "Créditos Insuficientes!" : "Comprar Créditos de Imagem"}
           </DialogTitle>
           <DialogDescription>
-            Escolha um plano e recarregue seus créditos para continuar gerando imagens incríveis!
+            {insufficientTokens 
+              ? "Você não tem créditos suficientes para gerar esta imagem. Escolha um plano abaixo para continuar:"
+              : "Escolha um plano e recarregue seus créditos para continuar gerando imagens incríveis!"
+            }
           </DialogDescription>
         </DialogHeader>
 
