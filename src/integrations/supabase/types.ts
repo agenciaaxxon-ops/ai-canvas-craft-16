@@ -106,7 +106,7 @@ export type Database = {
           pix_qr_code: string | null
           product_id: string
           status: string
-          stripe_session_id: string
+          stripe_session_id: string | null
           tokens_granted: number
           user_id: string
         }
@@ -118,7 +118,7 @@ export type Database = {
           pix_qr_code?: string | null
           product_id: string
           status?: string
-          stripe_session_id: string
+          stripe_session_id?: string | null
           tokens_granted: number
           user_id: string
         }
@@ -130,7 +130,7 @@ export type Database = {
           pix_qr_code?: string | null
           product_id?: string
           status?: string
-          stripe_session_id?: string
+          stripe_session_id?: string | null
           tokens_granted?: number
           user_id?: string
         }
