@@ -39,7 +39,7 @@ const Landing = () => {
           </h1>
           
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            De R$2,00 a R$30,00. Gere imagens profissionais com um clique usando o poder da inteligência artificial.
+            copy para começar grátis
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
