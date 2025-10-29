@@ -28,33 +28,40 @@ serve(async (req) => {
     }
 
     if (event === 'billing.paid' || event === 'payment.approved') {
-      // Extract billingId from multiple possible payload shapes
-      const billingId = data?.billing?.id || data?.id || data?.payment?.billingId || data?.pixQrCode?.billingId;
+      // Extract identifiers from multiple possible payload shapes
+      const billingId = data?.billing?.id || data?.id || data?.payment?.billingId || data?.pixQrCode?.billingId || null;
+      const externalId = data?.billing?.externalId || data?.externalId || data?.payment?.externalId || data?.pixQrCode?.externalId || null;
 
-      console.log('Processing payment, resolved billingId:', billingId);
-
-      if (!billingId) {
-        console.error('Missing billing id in webhook payload:', JSON.stringify(body));
-        return new Response(
-          JSON.stringify({ error: 'Missing billing id' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      console.log('Processing payment:', { billingId, externalId });
 
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
-      // Find purchase by billing id to get user and tokens
-      const { data: purchase, error: purchaseFindErr } = await supabaseAdmin
-        .from('purchases')
-        .select('user_id, tokens_granted, status')
-        .eq('abacate_billing_id', billingId)
-        .single();
+      // Try resolve purchase by externalId first (our purchase.id)
+      let purchase: { user_id: string; tokens_granted: number; status: string } | null = null;
+      if (externalId) {
+        const { data: byExternal } = await supabaseAdmin
+          .from('purchases')
+          .select('user_id, tokens_granted, status')
+          .eq('id', externalId)
+          .maybeSingle();
+        if (byExternal) purchase = byExternal as any;
+      }
 
-      if (purchaseFindErr || !purchase) {
-        console.error('Purchase not found for billing id:', billingId, purchaseFindErr);
+      // Fallback to billing id
+      if (!purchase && billingId) {
+        const { data: byBilling } = await supabaseAdmin
+          .from('purchases')
+          .select('user_id, tokens_granted, status')
+          .eq('abacate_billing_id', billingId)
+          .maybeSingle();
+        if (byBilling) purchase = byBilling as any;
+      }
+
+      if (!purchase) {
+        console.error('Purchase not found for identifiers:', { billingId, externalId });
         return new Response(
           JSON.stringify({ error: 'Purchase not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -62,7 +69,7 @@ serve(async (req) => {
       }
 
       if (purchase.status === 'completed') {
-        console.log('Payment already processed for billing:', billingId);
+        console.log('Payment already processed for:', { billingId, externalId });
         return new Response(
           JSON.stringify({ received: true, message: 'Already processed' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

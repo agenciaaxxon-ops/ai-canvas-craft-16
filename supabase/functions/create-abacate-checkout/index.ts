@@ -83,6 +83,7 @@ serve(async (req) => {
 
     // Create billing via Abacate Pay API
     const origin = req.headers.get('origin') || Deno.env.get('SUPABASE_URL');
+    const purchaseId = crypto.randomUUID();
     const billingResponse = await fetch(`${ABACATEPAY_API_URL}/billing/create`, {
       method: 'POST',
       headers: {
@@ -104,6 +105,7 @@ serve(async (req) => {
         ],
         returnUrl: `${origin}/app/plan?success=true`,
         completionUrl: `${origin}/app/plan?success=true`,
+        externalId: purchaseId,
         // Do not pass customer object without all required fields
         metadata: {
           user_id: user.id,
@@ -144,6 +146,7 @@ serve(async (req) => {
     const { error: purchaseError } = await supabaseAdmin
       .from('purchases')
       .insert({
+        id: purchaseId,
         user_id: user.id,
         product_id: product.id,
         abacate_billing_id: billing.id,
