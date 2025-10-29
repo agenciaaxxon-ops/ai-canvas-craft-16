@@ -22,7 +22,13 @@ serve(async (req) => {
       }
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const authHeader = req.headers.get('Authorization') || '';
+    const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(jwt);
+
+    if (userError) {
+      console.error('auth.getUser error:', userError);
+    }
 
     if (!user) {
       return new Response(
