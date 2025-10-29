@@ -66,15 +66,23 @@ const Generate = () => {
       });
 
       if (error) {
-        if (error.message.includes("Tokens insuficientes")) {
-          toast({
-            title: "Tokens insuficientes",
-            description: "Você precisa de mais tokens para gerar imagens",
-            variant: "destructive",
-          });
-        } else {
-          throw error;
-        }
+        console.error("Edge function error:", error);
+        const errorMessage = error.message || "Erro desconhecido ao gerar imagem";
+        
+        toast({
+          title: "Erro ao gerar imagem",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data?.generated_image_url) {
+        toast({
+          title: "Erro ao gerar imagem",
+          description: "Resposta inválida do servidor",
+          variant: "destructive",
+        });
         return;
       }
 
