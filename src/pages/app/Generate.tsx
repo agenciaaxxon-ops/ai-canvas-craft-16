@@ -99,15 +99,21 @@ const Generate = () => {
       if (error) {
         console.error("Edge function error:", error);
         
-        // Check if it's insufficient tokens error
-        if (error.message?.includes("Tokens insuficientes") || error.message?.includes("tokens_insuficientes")) {
+        // Check if it's insufficient tokens error (status 402 or message contains insufficient tokens)
+        const anyErr: any = error as any;
+        const statusCode = anyErr?.context?.response?.status;
+        
+        if (statusCode === 402 || 
+            error.message?.includes("Tokens insuficientes") || 
+            error.message?.includes("tokens_insuficientes") ||
+            error.message?.includes("insufficient")) {
           setShowTokensModal(true);
+          setLoading(false);
           return;
         }
 
         let specific = "";
         try {
-          const anyErr: any = error as any;
           const res = anyErr?.context?.response;
           if (res && typeof res.json === "function") {
             const body = await res.json();
