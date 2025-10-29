@@ -71,41 +71,72 @@ serve(async (req) => {
       );
     }
 
+    // Debug original image URL
+    console.log('generate-image original_image_url:', original_image_url);
+
     const prompt = `Gere uma foto de produto de alta qualidade: ${prompt_product}. Modelo: ${prompt_model}. Cenário: ${prompt_scene}. Estilo realista, iluminação suave, 1024x1024.`;
 
-    const content: any[] = [
-      { type: 'text', text: prompt },
-    ];
-    if (original_image_url) {
-      content.push({ type: 'image_url', image_url: { url: original_image_url } });
+    const buildContent = (withImage: boolean) => {
+      const arr: any[] = [{ type: 'text', text: prompt }];
+      if (withImage && original_image_url) {
+        arr.push({ type: 'image_url', image_url: { url: original_image_url } });
+      }
+      return arr;
+    };
+
+    async function callAI(withImage: boolean) {
+      return await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-image-preview',
+          messages: [
+            {
+              role: 'user',
+              content: buildContent(withImage),
+            },
+          ],
+          modalities: ['image', 'text'],
+        }),
+      });
     }
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content,
-          },
-        ],
-        modalities: ['image', 'text'],
-      }),
-    });
+    let aiResponse = await callAI(true);
 
     if (!aiResponse.ok) {
       const text = await aiResponse.text();
       console.error('AI gateway error:', aiResponse.status, text);
-      const status = aiResponse.status === 429 || aiResponse.status === 402 ? aiResponse.status : 500;
-      return new Response(
-        JSON.stringify({ error: aiResponse.status === 429 ? 'Limite de requisições excedido, tente novamente mais tarde.' : aiResponse.status === 402 ? 'Créditos de IA esgotados. Adicione créditos para continuar.' : 'Erro ao gerar imagem com IA' }),
-        { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+      if (aiResponse.status === 429 || aiResponse.status === 402) {
+        const status = aiResponse.status;
+        return new Response(
+          JSON.stringify({
+            error:
+              status === 429
+                ? 'Limite de requisições excedido, tente novamente mais tarde.'
+                : 'Créditos de IA esgotados. Adicione créditos para continuar.',
+          }),
+          { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Retry once without the image if the provider failed to fetch it
+      if (text?.includes('Failed to extract 1 image')) {
+        console.warn('Retrying AI generation without image due to extraction failure');
+        aiResponse = await callAI(false);
+      }
+
+      if (!aiResponse.ok) {
+        const t2 = await aiResponse.text();
+        console.error('AI gateway final error:', aiResponse.status, t2);
+        return new Response(
+          JSON.stringify({ error: 'Erro ao gerar imagem com IA' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const aiData = await aiResponse.json();

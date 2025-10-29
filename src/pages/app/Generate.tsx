@@ -58,8 +58,9 @@ const Generate = () => {
         .from("original-images")
         .createSignedUrl(fileName, 60 * 30);
       if (signedError || !signed?.signedUrl) throw signedError || new Error("Falha ao gerar URL assinada da imagem");
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const originalSignedUrl = `${baseUrl}${signed.signedUrl}`;
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const sUrl = signed.signedUrl;
+      const originalSignedUrl = sUrl.startsWith("http") ? sUrl : `${baseUrl}${sUrl}`;
 
       // Call edge function to generate image
       const { data, error } = await supabase.functions.invoke("generate-image", {
