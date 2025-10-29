@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Wand2, Upload, Loader2 } from "lucide-react";
+import { TokensModal } from "@/components/TokensModal";
+import { useSearchParams } from "react-router-dom";
 
 const Generate = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -16,7 +18,29 @@ const Generate = () => {
   const [loading, setLoading] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [showTokensModal, setShowTokensModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const canceled = searchParams.get("canceled");
+
+    if (success === "true") {
+      toast({
+        title: "Compra realizada com sucesso!",
+        description: "Seus tokens foram adicionados à sua conta.",
+      });
+      setSearchParams({});
+    } else if (canceled === "true") {
+      toast({
+        title: "Compra cancelada",
+        description: "Você pode tentar novamente quando quiser.",
+        variant: "destructive",
+      });
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams, toast]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -74,6 +98,13 @@ const Generate = () => {
 
       if (error) {
         console.error("Edge function error:", error);
+        
+        // Check if it's insufficient tokens error
+        if (error.message?.includes("Tokens insuficientes") || error.message?.includes("tokens_insuficientes")) {
+          setShowTokensModal(true);
+          return;
+        }
+
         let specific = "";
         try {
           const anyErr: any = error as any;
@@ -232,6 +263,8 @@ const Generate = () => {
           </div>
         </div>
       </div>
+
+      <TokensModal open={showTokensModal} onOpenChange={setShowTokensModal} />
     </div>
   );
 };

@@ -9,6 +9,7 @@ import SignUp from "./pages/SignUp";
 import AppLayout from "./components/AppLayout";
 import Generate from "./pages/app/Generate";
 import Gallery from "./pages/app/Gallery";
+import Plan from "./pages/app/Plan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route index element={<Navigate to="/app/generate" replace />} />
             <Route path="generate" element={<Generate />} />
             <Route path="gallery" element={<Gallery />} />
+            <Route path="plan" element={<Plan />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

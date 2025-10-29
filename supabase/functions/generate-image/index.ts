@@ -54,7 +54,9 @@ serve(async (req) => {
       );
     }
 
+    // Check token balance BEFORE generating
     if (profile.token_balance <= 0) {
+      console.log('User has insufficient tokens:', profile.token_balance);
       return new Response(
         JSON.stringify({ error: 'Tokens insuficientes' }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

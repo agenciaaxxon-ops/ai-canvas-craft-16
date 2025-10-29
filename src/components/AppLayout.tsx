@@ -3,48 +3,82 @@ import { Navigate, Outlet, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Wand2, Image, LogOut, Coins } from "lucide-react";
+import { Sparkles, Wand2, Image, Plus } from "lucide-react";
+import { UserProfileDropdown } from "@/components/UserProfileDropdown";
+import { TokensModal } from "@/components/TokensModal";
 
 const AppLayout = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<{ email: string; token_balance: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showTokensModal, setShowTokensModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        setTimeout(() => {
+          loadProfile(session.user.id);
+        }, 0);
+      } else {
+        setLoading(false);
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+      if (session?.user) {
+        loadProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Real-time token updates
   useEffect(() => {
-    if (user) {
-      loadProfile();
-    }
-  }, [user]);
-
-  const loadProfile = async () => {
     if (!user) return;
 
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new && 'token_balance' in payload.new) {
+            setProfile(prev => prev ? { ...prev, token_balance: payload.new.token_balance } : null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const loadProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
       .select("email, token_balance")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (!error && data) {
       setProfile(data);
     }
+    setLoading(false);
   };
 
   const handleSignOut = async () => {
@@ -94,20 +128,29 @@ const AppLayout = () => {
               </nav>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
-                <Coins className="h-4 w-4 text-primary" />
-                <span className="font-semibold">{profile?.token_balance ?? 0}</span>
-                <span className="text-xs text-muted-foreground">tokens</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <span className="font-semibold">{profile?.token_balance ?? 0}</span>
+                  <span className="text-xs text-muted-foreground">tokens</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setShowTokensModal(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
               
-              <div className="hidden md:block text-sm text-muted-foreground">
-                {profile?.email}
-              </div>
-
-              <Button variant="ghost" size="icon" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4" />
-              </Button>
+              <UserProfileDropdown
+                user={user}
+                email={profile?.email ?? ""}
+                tokenBalance={profile?.token_balance ?? 0}
+                onSignOut={handleSignOut}
+                onBuyTokens={() => setShowTokensModal(true)}
+              />
             </div>
           </div>
         </div>
@@ -117,6 +160,8 @@ const AppLayout = () => {
       <main className="container mx-auto px-4 py-8">
         <Outlet />
       </main>
+
+      <TokensModal open={showTokensModal} onOpenChange={setShowTokensModal} />
     </div>
   );
 };
