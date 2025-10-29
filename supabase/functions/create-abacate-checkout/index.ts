@@ -123,7 +123,17 @@ serve(async (req) => {
     }
 
     const billingData = await billingResponse.json();
-    console.log('Abacate Pay billing created:', billingData.id);
+    const billing = billingData?.data || billingData; // fallback if API returns plain object
+
+    console.log('Abacate Pay billing created:', billing?.id, 'url:', billing?.url);
+
+    if (!billing?.id || !billing?.url) {
+      console.error('Unexpected Abacate Pay response shape:', JSON.stringify(billingData));
+      return new Response(
+        JSON.stringify({ error: 'Resposta inesperada da API de pagamento' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Record purchase in database as pending
     const supabaseAdmin = createClient(
@@ -136,10 +146,10 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         product_id: product.id,
-        abacate_billing_id: billingData.id,
+        abacate_billing_id: billing.id,
         amount_paid: product.price_in_cents,
         tokens_granted: product.tokens_granted,
-        pix_qr_code: billingData.url,
+        pix_qr_code: billing.url,
         status: 'pending',
       });
 
@@ -149,8 +159,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        checkout_url: billingData.url,
-        billing_id: billingData.id,
+        checkout_url: billing.url,
+        billing_id: billing.id,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
