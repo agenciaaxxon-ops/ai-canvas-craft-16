@@ -54,9 +54,11 @@ const Generate = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: signed, error: signedError } = await supabase.storage
         .from("original-images")
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 30);
+      if (signedError || !signed?.signedUrl) throw signedError || new Error("Falha ao gerar URL assinada da imagem");
+      const originalSignedUrl = signed.signedUrl;
 
       // Call edge function to generate image
       const { data, error } = await supabase.functions.invoke("generate-image", {
@@ -64,7 +66,7 @@ const Generate = () => {
           prompt_product: product,
           prompt_model: model,
           prompt_scene: scene,
-          original_image_url: publicUrl,
+          original_image_url: originalSignedUrl,
         },
       });
 

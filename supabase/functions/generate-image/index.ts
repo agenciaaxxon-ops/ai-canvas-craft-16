@@ -69,9 +69,113 @@ serve(async (req) => {
       );
     }
 
-    // PLACEHOLDER: Generate image with AI
-    // For now, return a placeholder image
-    const generated_image_url = `https://placehold.co/1024x1024/667eea/ffffff?text=${encodeURIComponent(prompt_product)}`;
+    // Generate image using Lovable AI (Gemini image model)
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
+      // Refund token on failure
+      await supabaseClient
+        .from('profiles')
+        .update({ token_balance: profile.token_balance })
+        .eq('id', user.id);
+      return new Response(
+        JSON.stringify({ error: 'Configuração de IA ausente' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const prompt = `Gere uma foto de produto de alta qualidade: ${prompt_product}. Modelo: ${prompt_model}. Cenário: ${prompt_scene}. Estilo realista, iluminação suave, 1024x1024.`;
+
+    const content: any[] = [
+      { type: 'text', text: prompt },
+    ];
+    if (original_image_url) {
+      content.push({ type: 'image_url', image_url: { url: original_image_url } });
+    }
+
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [
+          {
+            role: 'user',
+            content,
+          },
+        ],
+        modalities: ['image', 'text'],
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const text = await aiResponse.text();
+      console.error('AI gateway error:', aiResponse.status, text);
+      // Handle rate limit or payment errors explicitly
+      const status = aiResponse.status === 429 || aiResponse.status === 402 ? aiResponse.status : 500;
+      // Refund token on failure
+      await supabaseClient
+        .from('profiles')
+        .update({ token_balance: profile.token_balance })
+        .eq('id', user.id);
+      return new Response(
+        JSON.stringify({ error: aiResponse.status === 429 ? 'Limite de requisições excedido, tente novamente mais tarde.' : aiResponse.status === 402 ? 'Créditos de IA esgotados. Adicione créditos para continuar.' : 'Erro ao gerar imagem com IA' }),
+        { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const aiData = await aiResponse.json();
+    const dataUrl: string | undefined = aiData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!dataUrl || !dataUrl.startsWith('data:image')) {
+      console.error('Invalid AI response:', aiData);
+      // Refund token on failure
+      await supabaseClient
+        .from('profiles')
+        .update({ token_balance: profile.token_balance })
+        .eq('id', user.id);
+      return new Response(
+        JSON.stringify({ error: 'Resposta inválida do provedor de IA' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Convert data URL to bytes
+    const [meta, base64Data] = dataUrl.split(',');
+    const contentType = (meta.match(/data:(.*?);base64/)?.[1]) || 'image/png';
+    const binary = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+    // Upload generated image to storage (public bucket)
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('jpeg') ? 'jpg' : contentType.includes('webp') ? 'webp' : 'png';
+    const outFileName = `${user.id}/${Date.now()}.${ext}`;
+
+    const blob = new Blob([binary], { type: contentType });
+
+    const { error: genUploadError } = await supabaseClient
+      .storage
+      .from('generated-images')
+      .upload(outFileName, blob, { contentType });
+
+    if (genUploadError) {
+      console.error('Error uploading generated image:', genUploadError);
+      // Refund token on failure
+      await supabaseClient
+        .from('profiles')
+        .update({ token_balance: profile.token_balance })
+        .eq('id', user.id);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao salvar imagem gerada' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: pub } = supabaseClient
+      .storage
+      .from('generated-images')
+      .getPublicUrl(outFileName);
+    const generated_image_url = pub.publicUrl;
 
     // Save generation record
     const { error: insertError } = await supabaseClient
@@ -87,10 +191,26 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Error saving generation:', insertError);
+      // Refund token on failure
+      await supabaseClient
+        .from('profiles')
+        .update({ token_balance: profile.token_balance })
+        .eq('id', user.id);
       return new Response(
         JSON.stringify({ error: 'Erro ao salvar geração' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Deduct 1 token after successful generation
+    const { error: updateError } = await supabaseClient
+      .from('profiles')
+      .update({ token_balance: profile.token_balance - 1 })
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('Error updating token balance after generation:', updateError);
+      // We proceed but log the error; user received value
     }
 
     return new Response(
