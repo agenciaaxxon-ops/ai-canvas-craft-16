@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
-import { Wand2 } from "lucide-react";
+import { Wand2, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Generation {
   id: string;
@@ -17,6 +18,7 @@ interface Generation {
 const Gallery = () => {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadGenerations();
@@ -36,6 +38,33 @@ const Gallery = () => {
       setGenerations(data);
     }
     setLoading(false);
+  };
+
+  const handleDownload = async (imageUrl: string, productName: string) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${productName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download iniciado",
+        description: "Sua imagem está sendo baixada",
+      });
+    } catch (error) {
+      console.error("Error downloading image:", error);
+      toast({
+        title: "Erro ao baixar",
+        description: "Não foi possível baixar a imagem",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -89,10 +118,20 @@ const Gallery = () => {
                   alt={`${gen.prompt_product} - ${gen.prompt_scene}`}
                   className="w-full rounded-lg"
                 />
-                <div className="mt-4 space-y-2">
-                  <p><strong>Produto:</strong> {gen.prompt_product}</p>
-                  <p><strong>Modelo:</strong> {gen.prompt_model}</p>
-                  <p><strong>Cenário:</strong> {gen.prompt_scene}</p>
+                <div className="mt-4 space-y-3">
+                  <div className="space-y-2">
+                    <p><strong>Produto:</strong> {gen.prompt_product}</p>
+                    <p><strong>Modelo:</strong> {gen.prompt_model}</p>
+                    <p><strong>Cenário:</strong> {gen.prompt_scene}</p>
+                  </div>
+                  <Button 
+                    onClick={() => handleDownload(gen.generated_image_url, gen.prompt_product)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Baixar Imagem
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>

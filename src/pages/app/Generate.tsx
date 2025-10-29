@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Wand2, Upload, Loader2 } from "lucide-react";
+import { Wand2, Upload, Loader2, Download } from "lucide-react";
 import { TokensModal } from "@/components/TokensModal";
 import { useSearchParams } from "react-router-dom";
 
@@ -168,6 +168,35 @@ const Generate = () => {
     }
   };
 
+  const handleDownload = async () => {
+    if (!generatedUrl) return;
+    
+    try {
+      const response = await fetch(generatedUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `imagem-gerada-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download iniciado",
+        description: "Sua imagem está sendo baixada",
+      });
+    } catch (error) {
+      console.error("Error downloading image:", error);
+      toast({
+        title: "Erro ao baixar",
+        description: "Não foi possível baixar a imagem",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <h1 className="text-4xl font-bold mb-8">Gerar Nova Imagem</h1>
@@ -260,7 +289,15 @@ const Generate = () => {
 
         {/* Right Column - Result */}
         <div className="bg-card p-6 rounded-xl border border-border/40">
-          <h3 className="text-xl font-semibold mb-4">Imagem Gerada</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold">Imagem Gerada</h3>
+            {generatedUrl && !loading && (
+              <Button onClick={handleDownload} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Baixar
+              </Button>
+            )}
+          </div>
           {errorMessage && (
             <Alert variant="destructive" className="mb-4">
               <AlertTitle>Erro ao gerar imagem</AlertTitle>
