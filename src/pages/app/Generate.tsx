@@ -68,6 +68,21 @@ const Generate = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Pre-check token balance to open purchase modal immediately
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('token_balance')
+        .eq('id', user.id)
+        .single();
+      if (profileError) {
+        console.warn('Falha ao verificar créditos:', profileError);
+      } else if ((profile?.token_balance ?? 0) <= 0) {
+        setShowTokensModal(true);
+        setLoading(false);
+        toast({ title: 'Créditos insuficientes', description: 'Compre créditos para continuar gerando imagens.' });
+        return;
+      }
+
       // Upload original image
       const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
