@@ -72,6 +72,8 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
+    console.log('Creating checkout session for product:', product.name, 'Price:', product.price_in_cents);
+
     // Create Checkout Session
     const origin = req.headers.get('origin') || Deno.env.get('VITE_SUPABASE_URL');
     const session = await stripe.checkout.sessions.create({
@@ -90,8 +92,12 @@ serve(async (req) => {
         },
       ],
       mode: 'payment',
-      success_url: `${origin}/app/generate?success=true`,
-      cancel_url: `${origin}/app/generate?canceled=true`,
+      success_url: `${origin}/app/plan?success=true`,
+      cancel_url: `${origin}/app/plan?canceled=true`,
+      billing_address_collection: 'auto',
+      phone_number_collection: {
+        enabled: true,
+      },
       metadata: {
         user_id: user.id,
         product_id: product.id,

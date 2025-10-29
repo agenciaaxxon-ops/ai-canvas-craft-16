@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Coins, CreditCard, Image } from "lucide-react";
+import { Loader2, Coins, CreditCard, Image, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { TokensModal } from "@/components/TokensModal";
 
@@ -23,6 +24,8 @@ interface GenerationStats {
 }
 
 export default function Plan() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [tokenBalance, setTokenBalance] = useState(0);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [stats, setStats] = useState<GenerationStats | null>(null);
@@ -31,7 +34,29 @@ export default function Plan() {
 
   useEffect(() => {
     loadData();
-  }, []);
+    
+    // Check for success/canceled params
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+    
+    if (success === 'true') {
+      toast({
+        title: "Pagamento processado!",
+        description: "Seus tokens serão creditados em alguns instantes. Pode levar até 1 minuto.",
+      });
+      // Remove params after showing toast
+      setSearchParams({});
+      // Reload data after 2 seconds
+      setTimeout(() => loadData(), 2000);
+    } else if (canceled === 'true') {
+      toast({
+        title: "Pagamento cancelado",
+        description: "Você pode tentar novamente quando quiser.",
+        variant: "destructive",
+      });
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   const loadData = async () => {
     setLoading(true);
