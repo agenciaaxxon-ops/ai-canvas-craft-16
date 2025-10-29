@@ -163,13 +163,13 @@ serve(async (req) => {
     }
 
     // Deduct 1 token after successful generation
-    const { error: updateError } = await supabaseClient
+    const { error: tokenUpdateErr } = await supabaseClient
       .from('profiles')
       .update({ token_balance: profile.token_balance - 1 })
       .eq('id', user.id);
 
-    if (updateError) {
-      console.error('Error updating token balance after generation:', updateError);
+    if (tokenUpdateErr) {
+      console.error('Error updating token balance after generation:', tokenUpdateErr);
       // We proceed but log the error; user received value
     }
 
