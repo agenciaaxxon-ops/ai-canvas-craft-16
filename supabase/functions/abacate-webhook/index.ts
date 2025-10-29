@@ -27,17 +27,16 @@ serve(async (req) => {
       );
     }
 
-    // Handle payment completed event
     if (event === 'billing.paid' || event === 'payment.approved') {
-      const billingId = data.id;
-      const metadata = data.metadata || {};
+      // Extract billingId from multiple possible payload shapes
+      const billingId = data?.billing?.id || data?.id || data?.payment?.billingId || data?.pixQrCode?.billingId;
 
-      console.log('Processing payment for billing:', billingId);
+      console.log('Processing payment, resolved billingId:', billingId);
 
-      if (!metadata.user_id || !metadata.product_id || !metadata.tokens_granted) {
-        console.error('Missing required metadata in billing:', billingId);
+      if (!billingId) {
+        console.error('Missing billing id in webhook payload:', JSON.stringify(body));
         return new Response(
-          JSON.stringify({ error: 'Missing metadata' }),
+          JSON.stringify({ error: 'Missing billing id' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -47,14 +46,22 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
-      // Check if this payment was already processed
-      const { data: existingPurchase } = await supabaseAdmin
+      // Find purchase by billing id to get user and tokens
+      const { data: purchase, error: purchaseFindErr } = await supabaseAdmin
         .from('purchases')
-        .select('status')
+        .select('user_id, tokens_granted, status')
         .eq('abacate_billing_id', billingId)
         .single();
 
-      if (existingPurchase?.status === 'completed') {
+      if (purchaseFindErr || !purchase) {
+        console.error('Purchase not found for billing id:', billingId, purchaseFindErr);
+        return new Response(
+          JSON.stringify({ error: 'Purchase not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (purchase.status === 'completed') {
         console.log('Payment already processed for billing:', billingId);
         return new Response(
           JSON.stringify({ received: true, message: 'Already processed' }),
@@ -66,7 +73,7 @@ serve(async (req) => {
       const { data: profile, error: profileError } = await supabaseAdmin
         .from('profiles')
         .select('token_balance')
-        .eq('id', metadata.user_id)
+        .eq('id', purchase.user_id)
         .single();
 
       if (profileError || !profile) {
@@ -77,14 +84,14 @@ serve(async (req) => {
         );
       }
 
-      const tokensToAdd = parseInt(metadata.tokens_granted);
+      const tokensToAdd = Number(purchase.tokens_granted || 0);
       const newBalance = profile.token_balance + tokensToAdd;
 
       // Update token balance
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
         .update({ token_balance: newBalance })
-        .eq('id', metadata.user_id);
+        .eq('id', purchase.user_id);
 
       if (updateError) {
         console.error('Error updating token balance:', updateError);
@@ -103,7 +110,7 @@ serve(async (req) => {
       if (purchaseError) {
         console.error('Error updating purchase:', purchaseError);
       } else {
-        console.log(`Successfully added ${tokensToAdd} tokens to user ${metadata.user_id}`);
+        console.log(`Successfully added ${tokensToAdd} tokens to user ${purchase.user_id}`);
       }
     }
 

@@ -83,11 +83,12 @@ serve(async (req) => {
 
     // Create billing via Abacate Pay API
     const origin = req.headers.get('origin') || Deno.env.get('SUPABASE_URL');
-    const billingResponse = await fetch(`${ABACATEPAY_API_URL}/billing`, {
+    const billingResponse = await fetch(`${ABACATEPAY_API_URL}/billing/create`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${abacateApiKey}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         frequency: 'ONE_TIME',
@@ -98,14 +99,12 @@ serve(async (req) => {
             name: product.name,
             description: `${product.tokens_granted} créditos para geração de imagens`,
             quantity: 1,
-            price: product.price_in_cents, // Abacate Pay usa centavos
+            price: product.price_in_cents, // centavos
           }
         ],
         returnUrl: `${origin}/app/plan?success=true`,
         completionUrl: `${origin}/app/plan?success=true`,
-        customer: {
-          email: userEmail,
-        },
+        // Do not pass customer object without all required fields
         metadata: {
           user_id: user.id,
           product_id: product.id,
