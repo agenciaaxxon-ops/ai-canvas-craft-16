@@ -55,29 +55,10 @@ serve(async (req) => {
       );
     }
 
-    // Deduct 1 token
-    const { error: updateError } = await supabaseClient
-      .from('profiles')
-      .update({ token_balance: profile.token_balance - 1 })
-      .eq('id', user.id);
-
-    if (updateError) {
-      console.error('Error updating token balance:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao atualizar saldo de tokens' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Generate image using Lovable AI (Gemini image model)
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       console.error('LOVABLE_API_KEY is not configured');
-      // Refund token on failure
-      await supabaseClient
-        .from('profiles')
-        .update({ token_balance: profile.token_balance })
-        .eq('id', user.id);
       return new Response(
         JSON.stringify({ error: 'Configuração de IA ausente' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -114,13 +95,7 @@ serve(async (req) => {
     if (!aiResponse.ok) {
       const text = await aiResponse.text();
       console.error('AI gateway error:', aiResponse.status, text);
-      // Handle rate limit or payment errors explicitly
       const status = aiResponse.status === 429 || aiResponse.status === 402 ? aiResponse.status : 500;
-      // Refund token on failure
-      await supabaseClient
-        .from('profiles')
-        .update({ token_balance: profile.token_balance })
-        .eq('id', user.id);
       return new Response(
         JSON.stringify({ error: aiResponse.status === 429 ? 'Limite de requisições excedido, tente novamente mais tarde.' : aiResponse.status === 402 ? 'Créditos de IA esgotados. Adicione créditos para continuar.' : 'Erro ao gerar imagem com IA' }),
         { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -131,11 +106,6 @@ serve(async (req) => {
     const dataUrl: string | undefined = aiData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     if (!dataUrl || !dataUrl.startsWith('data:image')) {
       console.error('Invalid AI response:', aiData);
-      // Refund token on failure
-      await supabaseClient
-        .from('profiles')
-        .update({ token_balance: profile.token_balance })
-        .eq('id', user.id);
       return new Response(
         JSON.stringify({ error: 'Resposta inválida do provedor de IA' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -160,11 +130,6 @@ serve(async (req) => {
 
     if (genUploadError) {
       console.error('Error uploading generated image:', genUploadError);
-      // Refund token on failure
-      await supabaseClient
-        .from('profiles')
-        .update({ token_balance: profile.token_balance })
-        .eq('id', user.id);
       return new Response(
         JSON.stringify({ error: 'Erro ao salvar imagem gerada' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -191,11 +156,6 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Error saving generation:', insertError);
-      // Refund token on failure
-      await supabaseClient
-        .from('profiles')
-        .update({ token_balance: profile.token_balance })
-        .eq('id', user.id);
       return new Response(
         JSON.stringify({ error: 'Erro ao salvar geração' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
