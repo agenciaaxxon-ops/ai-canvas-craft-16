@@ -115,7 +115,6 @@ serve(async (req) => {
       returnUrl: `${origin}/app/plan?success=true`,
       completionUrl: `${origin}/app/plan?success=true`,
       externalId: purchaseId,
-      customer: { email: userEmail },
       metadata: {
         user_id: user.id,
         product_id: product.id,
