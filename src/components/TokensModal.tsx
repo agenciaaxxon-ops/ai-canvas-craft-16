@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Image } from "lucide-react";
+import { trackInitiateCheckout } from "@/lib/facebookPixel";
 
 interface Product {
   id: string;
@@ -53,6 +54,19 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
     setSelectedProduct(productId);
 
     try {
+      // Find the product data for Facebook Pixel tracking
+      const product = products.find(p => p.id === productId);
+      
+      if (product) {
+        // Track InitiateCheckout event with Facebook Pixel
+        trackInitiateCheckout({
+          productId: product.id,
+          productName: product.name,
+          value: product.price_in_cents / 100,
+          currency: 'BRL',
+        });
+      }
+
       const { data, error } = await supabase.functions.invoke("create-abacate-checkout", {
         body: { product_id: productId },
       });
@@ -60,6 +74,16 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
       if (error) throw error;
 
       if (data?.checkout_url) {
+        // Store purchase data for conversion tracking
+        if (product) {
+          sessionStorage.setItem('pending_purchase', JSON.stringify({
+            productId: product.id,
+            productName: product.name,
+            value: product.price_in_cents / 100,
+            tokensGranted: product.tokens_granted,
+          }));
+        }
+
         // Abrir em nova aba para facilitar o pagamento PIX
         window.open(data.checkout_url, '_blank');
         

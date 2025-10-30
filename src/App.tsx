@@ -11,7 +11,9 @@ import Generate from "./pages/app/Generate";
 import Gallery from "./pages/app/Gallery";
 import Plan from "./pages/app/Plan";
 import Admin from "./pages/app/Admin";
+import PurchaseSuccess from "./pages/app/PurchaseSuccess";
 import NotFound from "./pages/NotFound";
+import { CookieConsent } from "./components/CookieConsent";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +22,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <CookieConsent />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -32,6 +35,7 @@ const App = () => (
             <Route path="gallery" element={<Gallery />} />
             <Route path="plan" element={<Plan />} />
             <Route path="admin" element={<Admin />} />
+            <Route path="purchase-success" element={<PurchaseSuccess />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
