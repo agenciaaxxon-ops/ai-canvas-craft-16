@@ -112,8 +112,8 @@ serve(async (req) => {
           price: product.price_in_cents, // centavos
         }
       ],
-      returnUrl: `${origin}/app/plan?success=true`,
-      completionUrl: `${origin}/app/plan?success=true`,
+      returnUrl: `${origin}/app/purchase-success?value=${product.price_in_cents/100}&product_id=${product.id}&product_name=${encodeURIComponent(product.name)}&tokens=${product.tokens_granted}&transaction_id=${purchaseId}`,
+      completionUrl: `${origin}/app/purchase-success?value=${product.price_in_cents/100}&product_id=${product.id}&product_name=${encodeURIComponent(product.name)}&tokens=${product.tokens_granted}&transaction_id=${purchaseId}`,
       externalId: purchaseId,
       metadata: {
         user_id: user.id,
