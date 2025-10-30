@@ -69,7 +69,7 @@ export default function PurchaseSuccess() {
             className="w-full"
             size="lg"
           >
-            Começar Agora
+            Fiz o Pagamento
           </Button>
         </CardContent>
       </Card>
