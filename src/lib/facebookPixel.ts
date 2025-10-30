@@ -1,5 +1,4 @@
 // Facebook Pixel Helper Functions
-// Replace 'YOUR_PIXEL_ID' with your actual Facebook Pixel ID
 
 declare global {
   interface Window {
@@ -7,7 +6,7 @@ declare global {
   }
 }
 
-export const FB_PIXEL_ID = 'YOUR_PIXEL_ID'; // TODO: Replace with your actual Pixel ID
+export const FB_PIXEL_ID = '2216647755491538';
 
 export const initFacebookPixel = () => {
   if (typeof window !== 'undefined' && window.fbq) {
