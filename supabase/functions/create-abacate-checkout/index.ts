@@ -84,35 +84,38 @@ serve(async (req) => {
     // Create billing via Abacate Pay API
     const origin = req.headers.get('origin') || Deno.env.get('SUPABASE_URL');
     const purchaseId = crypto.randomUUID();
+
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${abacateApiKey}`);
+    headers.set('Content-Type', 'application/json');
+    headers.set('Accept', 'application/json');
+
+    const payload = {
+      frequency: 'ONE_TIME',
+      methods: ['PIX'],
+      products: [
+        {
+          externalId: product.id,
+          name: product.name,
+          description: `${product.tokens_granted} créditos para geração de imagens`,
+          quantity: 1,
+          price: product.price_in_cents, // centavos
+        }
+      ],
+      returnUrl: `${origin}/app/plan?success=true`,
+      completionUrl: `${origin}/app/plan?success=true`,
+      externalId: purchaseId,
+      metadata: {
+        user_id: user.id,
+        product_id: product.id,
+        tokens_granted: product.tokens_granted.toString(),
+      }
+    };
+
     const billingResponse = await fetch(`${ABACATEPAY_API_URL}/billing/create`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${abacateApiKey}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        frequency: 'ONE_TIME',
-        methods: ['PIX'],
-        products: [
-          {
-            externalId: product.id,
-            name: product.name,
-            description: `${product.tokens_granted} créditos para geração de imagens`,
-            quantity: 1,
-            price: product.price_in_cents, // centavos
-          }
-        ],
-        returnUrl: `${origin}/app/plan?success=true`,
-        completionUrl: `${origin}/app/plan?success=true`,
-        externalId: purchaseId,
-        // Do not pass customer object without all required fields
-        metadata: {
-          user_id: user.id,
-          product_id: product.id,
-          tokens_granted: product.tokens_granted.toString(),
-        }
-      }),
+      headers,
+      body: JSON.stringify(payload),
     });
 
     if (!billingResponse.ok) {

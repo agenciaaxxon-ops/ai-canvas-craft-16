@@ -3,14 +3,9 @@ project_id = "pqfvjfpyqtinobpitnft"
 [functions.generate-image]
 verify_jwt = true
 
-[functions.create-checkout]
-verify_jwt = true
-
-[functions.stripe-webhook]
-verify_jwt = false
-
 [functions.create-abacate-checkout]
 verify_jwt = true
 
 [functions.abacate-webhook]
 verify_jwt = false
+
