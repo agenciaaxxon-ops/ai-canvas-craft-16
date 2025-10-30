@@ -3,10 +3,11 @@ import { Navigate, Outlet, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Wand2, Image, Plus } from "lucide-react";
+import { Sparkles, Wand2, Image, Plus, Shield } from "lucide-react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { TokensModal } from "@/components/TokensModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 const AppLayout = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -15,6 +16,7 @@ const AppLayout = () => {
   const [loading, setLoading] = useState(true);
   const [showTokensModal, setShowTokensModal] = useState(false);
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -126,6 +128,14 @@ const AppLayout = () => {
                     Minha Galeria
                   </Link>
                 </Button>
+                {isAdmin && (
+                  <Button variant="ghost" asChild>
+                    <Link to="/app/admin" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Admin
+                    </Link>
+                  </Button>
+                )}
               </nav>
             </div>
 

@@ -10,6 +10,7 @@ import AppLayout from "./components/AppLayout";
 import Generate from "./pages/app/Generate";
 import Gallery from "./pages/app/Gallery";
 import Plan from "./pages/app/Plan";
+import Admin from "./pages/app/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="generate" element={<Generate />} />
             <Route path="gallery" element={<Gallery />} />
             <Route path="plan" element={<Plan />} />
+            <Route path="admin" element={<Admin />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
