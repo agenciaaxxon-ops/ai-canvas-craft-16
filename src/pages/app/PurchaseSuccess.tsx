@@ -31,10 +31,10 @@ export default function PurchaseSuccess() {
       setHasTracked(true);
     }
 
-    // Redirect after 5 seconds
+    // Redirect after 15 seconds
     const timer = setTimeout(() => {
       navigate('/app/generate');
-    }, 5000);
+    }, 15000);
 
     return () => clearTimeout(timer);
   }, [searchParams, navigate, hasTracked]);
