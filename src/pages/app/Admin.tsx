@@ -61,6 +61,8 @@ export default function Admin() {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [searchEmail, setSearchEmail] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>('created_at');
+  const [allPurchases, setAllPurchases] = useState<any[]>([]);
+  const [allGenerations, setAllGenerations] = useState<any[]>([]);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -78,6 +80,10 @@ export default function Admin() {
   useEffect(() => {
     filterAndSortUsers();
   }, [users, periodFilter, searchEmail, sortBy]);
+
+  useEffect(() => {
+    calculateStats();
+  }, [users, periodFilter]);
 
   const getDateForPeriod = (period: PeriodFilter): Date | null => {
     const now = new Date();
@@ -149,22 +155,21 @@ export default function Admin() {
       // Load purchase data for each user
       const { data: purchasesData, error: purchasesError } = await supabase
         .from('purchases')
-        .select('user_id, amount_paid, status')
+        .select('user_id, amount_paid, status, created_at')
         .eq('status', 'completed');
 
       if (purchasesError) throw purchasesError;
 
-      // Load generation stats
-      const { count: generationsCount } = await supabase
-        .from('generations')
-        .select('*', { count: 'exact', head: true });
-
       // Load generations with dates
       const { data: generationsData } = await supabase
         .from('generations')
-        .select('created_at');
+        .select('created_at, user_id');
 
-      // Calculate aggregated data
+      // Store raw data
+      setAllPurchases(purchasesData || []);
+      setAllGenerations(generationsData || []);
+
+      // Calculate aggregated data per user
       const userPurchases = purchasesData.reduce((acc, purchase) => {
         if (!acc[purchase.user_id]) {
           acc[purchase.user_id] = { total: 0, count: 0 };
@@ -181,47 +186,48 @@ export default function Admin() {
       }));
 
       setUsers(usersWithStats);
-
-      // Calculate total stats
-      const totalRevenue = purchasesData.reduce((sum, p) => sum + p.amount_paid, 0);
-      
-      // Calculate period-specific stats
-      const periodDate = getDateForPeriod(periodFilter);
-      let newUsersInPeriod = profilesData.length;
-      let revenueInPeriod = totalRevenue;
-      let generationsInPeriod = generationsCount || 0;
-
-      if (periodDate) {
-        newUsersInPeriod = profilesData.filter(p => 
-          new Date(p.created_at) >= periodDate
-        ).length;
-
-        revenueInPeriod = purchasesData
-          .filter(p => {
-            const profile = profilesData.find(pr => pr.id === p.user_id);
-            return profile && new Date(profile.created_at) >= periodDate;
-          })
-          .reduce((sum, p) => sum + p.amount_paid, 0);
-
-        generationsInPeriod = generationsData?.filter(g => 
-          new Date(g.created_at) >= periodDate
-        ).length || 0;
-      }
-
-      setStats({
-        totalUsers: profilesData.length,
-        totalRevenue,
-        totalGenerations: generationsCount || 0,
-        newUsersInPeriod,
-        revenueInPeriod,
-        generationsInPeriod,
-      });
     } catch (error) {
       console.error('Error loading admin data:', error);
       toast.error("Erro ao carregar dados");
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateStats = () => {
+    const periodDate = getDateForPeriod(periodFilter);
+    
+    // Calculate total stats
+    const totalRevenue = allPurchases.reduce((sum, p) => sum + p.amount_paid, 0);
+    const totalGenerations = allGenerations.length;
+    
+    // Calculate period-specific stats
+    let newUsersInPeriod = users.length;
+    let revenueInPeriod = totalRevenue;
+    let generationsInPeriod = totalGenerations;
+
+    if (periodDate) {
+      newUsersInPeriod = users.filter(u => 
+        new Date(u.created_at) >= periodDate
+      ).length;
+
+      revenueInPeriod = allPurchases
+        .filter(p => new Date(p.created_at) >= periodDate)
+        .reduce((sum, p) => sum + p.amount_paid, 0);
+
+      generationsInPeriod = allGenerations.filter(g => 
+        new Date(g.created_at) >= periodDate
+      ).length;
+    }
+
+    setStats({
+      totalUsers: users.length,
+      totalRevenue,
+      totalGenerations,
+      newUsersInPeriod,
+      revenueInPeriod,
+      generationsInPeriod,
+    });
   };
 
   const handleAddCredits = async () => {
