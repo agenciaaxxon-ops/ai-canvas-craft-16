@@ -109,10 +109,14 @@ serve(async (req) => {
       }
 
       // Update purchase status
+      const updateFilter = externalId 
+        ? { id: externalId }
+        : { abacate_billing_id: billingId };
+      
       const { error: purchaseError } = await supabaseAdmin
         .from('purchases')
         .update({ status: 'completed' })
-        .eq('abacate_billing_id', billingId);
+        .match(updateFilter);
 
       if (purchaseError) {
         console.error('Error updating purchase:', purchaseError);
