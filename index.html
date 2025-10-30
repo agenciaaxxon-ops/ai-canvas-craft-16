@@ -37,15 +37,17 @@
         fbq('track', 'PageView');
       }
     </script>
+    <!-- End Facebook Pixel Code -->
+  </head>
+
+  <body>
+    <!-- Facebook Pixel noscript fallback -->
     <noscript>
       <!-- TODO: Replace YOUR_PIXEL_ID with your actual Pixel ID -->
       <img height="1" width="1" style="display:none"
            src="https://www.facebook.com/tr?id=YOUR_PIXEL_ID&ev=PageView&noscript=1" />
     </noscript>
-    <!-- End Facebook Pixel Code -->
-  </head>
-
-  <body>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
