@@ -115,6 +115,7 @@ serve(async (req) => {
       returnUrl: `${origin}/app/plan?success=true`,
       completionUrl: `${origin}/app/plan?success=true`,
       externalId: purchaseId,
+      customer: { email: userEmail },
       metadata: {
         user_id: user.id,
         product_id: product.id,
@@ -129,10 +130,10 @@ serve(async (req) => {
     });
 
     if (!billingResponse.ok) {
-      const errorData = await billingResponse.text();
-      console.error('Abacate Pay API error:', errorData);
+      const errorText = await billingResponse.text();
+      console.error('Abacate Pay API error:', billingResponse.status, errorText);
       return new Response(
-        JSON.stringify({ error: 'Erro ao criar cobrança' }),
+        JSON.stringify({ error: 'Erro ao criar cobrança', provider_status: billingResponse.status, provider_body: errorText }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
