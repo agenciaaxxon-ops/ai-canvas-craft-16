@@ -50,6 +50,9 @@ export default function PurchaseSuccess() {
           <CardDescription>
             Seus créditos foram adicionados à sua conta com sucesso
           </CardDescription>
+          <p className="text-xs text-transparent select-none" aria-hidden="true">
+            PURCHASE_EVENT_CONFIRMATION_PAGE
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center space-y-2">
