@@ -78,15 +78,25 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Creating Abacate Pay billing for product:', product.name, 'Price:', product.price_in_cents);
+    // Sanitize header value to avoid non-ASCII or CR/LF characters that break Deno Headers ByteString
+    const tokenOnly = (abacateApiKey as string)
+      .toString()
+      .replace(/[\r\n]/g, '')
+      .replace(/[^\x20-\x7E]/g, '')
+      .trim();
+    const bearerValue = `Bearer ${tokenOnly}`;
 
     // Create billing via Abacate Pay API
     const origin = req.headers.get('origin') || Deno.env.get('SUPABASE_URL');
     const purchaseId = crypto.randomUUID();
 
     const headers = new Headers();
-    headers.set('Authorization', `Bearer ${abacateApiKey}`);
+    try {
+      headers.set('Authorization', bearerValue);
+    } catch (e) {
+      console.error('Failed to set Authorization header, falling back to X-Api-Key');
+      headers.set('X-Api-Key', tokenOnly);
+    }
     headers.set('Content-Type', 'application/json');
     headers.set('Accept', 'application/json');
 
