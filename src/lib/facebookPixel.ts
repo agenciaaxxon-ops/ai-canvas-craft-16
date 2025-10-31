@@ -6,7 +6,7 @@ declare global {
   }
 }
 
-export const FB_PIXEL_ID = '1920027422252525';
+export const FB_PIXEL_ID = '2216647755491538';
 
 export const initFacebookPixel = () => {
   if (typeof window !== 'undefined' && window.fbq) {
