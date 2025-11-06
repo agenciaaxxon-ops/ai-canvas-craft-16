@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
+import { SubscriptionModal } from "@/components/SubscriptionModal";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -32,15 +34,15 @@ const SignUp = () => {
         description: error.message,
         variant: "destructive",
       });
+      setLoading(false);
     } else {
       toast({
         title: "Conta criada com sucesso!",
-        description: "Você ganhou 5 tokens grátis para começar.",
+        description: "Agora escolha seu plano para começar.",
       });
-      navigate("/app");
+      setLoading(false);
+      setShowSubscriptionModal(true);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -53,7 +55,7 @@ const SignUp = () => {
           </Link>
           <h2 className="text-3xl font-bold">Crie sua conta</h2>
           <p className="text-muted-foreground mt-2">
-            Comece grátis com 5 tokens
+            Escolha seu plano e comece a gerar
           </p>
         </div>
 
@@ -102,6 +104,15 @@ const SignUp = () => {
             </Link>
           </p>
         </form>
+
+        <SubscriptionModal 
+          open={showSubscriptionModal} 
+          onOpenChange={(open) => {
+            setShowSubscriptionModal(open);
+            if (!open) navigate("/app");
+          }}
+          requiredForSignup={true}
+        />
       </div>
     </div>
   );

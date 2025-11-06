@@ -49,7 +49,7 @@ const Landing = () => {
           </h1>
           
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Comece grátis agora. Transforme suas fotos em imagens profissionais sem compromisso.
+            Escolha seu plano e transforme suas fotos em imagens profissionais de alta qualidade.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">

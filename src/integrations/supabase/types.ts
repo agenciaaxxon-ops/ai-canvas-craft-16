@@ -58,18 +58,21 @@ export type Database = {
       products: {
         Row: {
           id: string
+          is_unlimited: boolean | null
           name: string
           price_in_cents: number
           tokens_granted: number
         }
         Insert: {
           id?: string
+          is_unlimited?: boolean | null
           name: string
           price_in_cents: number
           tokens_granted: number
         }
         Update: {
           id?: string
+          is_unlimited?: boolean | null
           name?: string
           price_in_cents?: number
           tokens_granted?: number
@@ -81,18 +84,33 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          monthly_reset_date: string | null
+          monthly_usage: number | null
+          subscription_end_date: string | null
+          subscription_plan: string | null
+          subscription_status: string | null
           token_balance: number
         }
         Insert: {
           created_at?: string
           email: string
           id: string
+          monthly_reset_date?: string | null
+          monthly_usage?: number | null
+          subscription_end_date?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
           token_balance?: number
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          monthly_reset_date?: string | null
+          monthly_usage?: number | null
+          subscription_end_date?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
           token_balance?: number
         }
         Relationships: []

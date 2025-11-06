@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Wand2, Upload, Loader2, Download } from "lucide-react";
-import { TokensModal } from "@/components/TokensModal";
+import { SubscriptionModal } from "@/components/SubscriptionModal";
 import { useSearchParams } from "react-router-dom";
 
 const Generate = () => {
@@ -18,7 +18,7 @@ const Generate = () => {
   const [loading, setLoading] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [showTokensModal, setShowTokensModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
@@ -68,19 +68,62 @@ const Generate = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Pre-check token balance to open purchase modal immediately
+      // Check subscription status
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('token_balance')
+        .select('subscription_status, subscription_plan, monthly_usage, monthly_reset_date')
         .eq('id', user.id)
         .single();
+
       if (profileError) {
-        console.warn('Falha ao verificar créditos:', profileError);
-      } else if ((profile?.token_balance ?? 0) <= 0) {
-        setShowTokensModal(true);
+        console.warn('Falha ao verificar assinatura:', profileError);
+      }
+
+      // Check if subscription is active
+      if (!profile || profile.subscription_status !== 'active') {
+        setShowSubscriptionModal(true);
         setLoading(false);
-        toast({ title: 'Créditos insuficientes', description: 'Compre créditos para continuar gerando imagens.' });
+        toast({ 
+          title: 'Assinatura inativa', 
+          description: 'Você precisa de uma assinatura ativa para gerar imagens.',
+          variant: 'destructive'
+        });
         return;
+      }
+
+      // Check if monthly reset is needed
+      const resetDate = profile.monthly_reset_date ? new Date(profile.monthly_reset_date) : null;
+      if (resetDate && resetDate < new Date()) {
+        // Reset monthly usage
+        await supabase
+          .from('profiles')
+          .update({ 
+            monthly_usage: 0,
+            monthly_reset_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString()
+          })
+          .eq('id', user.id);
+      }
+
+      // Get product info to check if plan is unlimited
+      const { data: products } = await supabase
+        .from('products')
+        .select('is_unlimited, tokens_granted')
+        .ilike('name', `%${profile.subscription_plan}%`)
+        .single();
+
+      // Check monthly limit for non-unlimited plans
+      if (products && !products.is_unlimited) {
+        const currentUsage = profile.monthly_usage || 0;
+        if (currentUsage >= products.tokens_granted) {
+          setShowSubscriptionModal(true);
+          setLoading(false);
+          toast({ 
+            title: 'Limite mensal atingido', 
+            description: 'Você atingiu o limite de imagens do seu plano. Faça upgrade para o plano ilimitado!',
+            variant: 'destructive'
+          });
+          return;
+        }
       }
 
       // Upload original image
@@ -114,15 +157,15 @@ const Generate = () => {
       if (error) {
         console.error("Edge function error:", error);
         
-        // Check if it's insufficient tokens error (status 402 or message contains insufficient tokens)
+        // Check if it's subscription error
         const anyErr: any = error as any;
         const statusCode = anyErr?.context?.response?.status;
         
         if (statusCode === 402 || 
-            error.message?.includes("Tokens insuficientes") || 
-            error.message?.includes("tokens_insuficientes") ||
-            error.message?.includes("insufficient")) {
-          setShowTokensModal(true);
+            error.message?.includes("insuficient") || 
+            error.message?.includes("subscription") ||
+            error.message?.includes("limit")) {
+          setShowSubscriptionModal(true);
           setLoading(false);
           return;
         }
@@ -148,6 +191,20 @@ const Generate = () => {
         setErrorMessage(msg);
         toast({ title: "Erro ao gerar imagem", description: msg, variant: "destructive" });
         return;
+      }
+
+      // Increment monthly usage
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('monthly_usage')
+        .eq('id', user.id)
+        .single();
+      
+      if (currentProfile) {
+        await supabase
+          .from('profiles')
+          .update({ monthly_usage: (currentProfile.monthly_usage || 0) + 1 })
+          .eq('id', user.id);
       }
 
       setGeneratedUrl(data.generated_image_url);
@@ -322,7 +379,7 @@ const Generate = () => {
         </div>
       </div>
 
-      <TokensModal open={showTokensModal} onOpenChange={setShowTokensModal} insufficientTokens={true} />
+      <SubscriptionModal open={showSubscriptionModal} onOpenChange={setShowSubscriptionModal} />
     </div>
   );
 };

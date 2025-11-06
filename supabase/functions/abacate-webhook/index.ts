@@ -40,11 +40,11 @@ serve(async (req) => {
       );
 
       // Try resolve purchase by externalId first (our purchase.id)
-      let purchase: { user_id: string; tokens_granted: number; status: string } | null = null;
+      let purchase: { user_id: string; tokens_granted: number; status: string; product_id: string } | null = null;
       if (externalId) {
         const { data: byExternal } = await supabaseAdmin
           .from('purchases')
-          .select('user_id, tokens_granted, status')
+          .select('user_id, tokens_granted, status, product_id')
           .eq('id', externalId)
           .maybeSingle();
         if (byExternal) purchase = byExternal as any;
@@ -54,7 +54,7 @@ serve(async (req) => {
       if (!purchase && billingId) {
         const { data: byBilling } = await supabaseAdmin
           .from('purchases')
-          .select('user_id, tokens_granted, status')
+          .select('user_id, tokens_granted, status, product_id')
           .eq('abacate_billing_id', billingId)
           .maybeSingle();
         if (byBilling) purchase = byBilling as any;
@@ -76,35 +76,40 @@ serve(async (req) => {
         );
       }
 
-      // Get current token balance
-      const { data: profile, error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .select('token_balance')
-        .eq('id', purchase.user_id)
+      // Get product info to check if it's unlimited
+      const { data: product, error: productError } = await supabaseAdmin
+        .from('products')
+        .select('is_unlimited, name')
+        .eq('id', purchase.product_id)
         .single();
 
-      if (profileError || !profile) {
-        console.error('Error fetching profile:', profileError);
-        return new Response(
-          JSON.stringify({ error: 'Profile not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (productError) {
+        console.error('Error fetching product:', productError);
       }
 
-      const tokensToAdd = Number(purchase.tokens_granted || 0);
-      const newBalance = profile.token_balance + tokensToAdd;
+      // Update user's subscription
+      const subscriptionEndDate = new Date();
+      subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
 
-      // Update token balance
+      const monthlyResetDate = new Date();
+      monthlyResetDate.setMonth(monthlyResetDate.getMonth() + 1);
+
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
-        .update({ token_balance: newBalance })
+        .update({ 
+          subscription_plan: product?.name || 'unknown',
+          subscription_status: 'active',
+          subscription_end_date: subscriptionEndDate.toISOString(),
+          monthly_usage: 0,
+          monthly_reset_date: monthlyResetDate.toISOString()
+        })
         .eq('id', purchase.user_id);
 
       if (updateError) {
-        console.error('Error updating token balance:', updateError);
+        console.error('Error updating subscription:', updateError);
         return new Response(
-          JSON.stringify({ error: 'Failed to update tokens' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Failed to update subscription' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         );
       }
 
@@ -121,7 +126,7 @@ serve(async (req) => {
       if (purchaseError) {
         console.error('Error updating purchase:', purchaseError);
       } else {
-        console.log(`Successfully added ${tokensToAdd} tokens to user ${purchase.user_id}`);
+        console.log(`Successfully activated subscription for user ${purchase.user_id}`);
       }
     }
 
