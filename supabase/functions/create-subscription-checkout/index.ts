@@ -51,6 +51,9 @@ serve(async (req) => {
       .single();
 
     const userEmail = profile?.email || user.email;
+    
+    // Extract name from email (before @) or use a default
+    const userName = userEmail.split('@')[0] || 'Cliente';
 
     // Create Abacate Pay checkout for subscription
     const abacateApiKey = Deno.env.get("ABACATEPAY_API_KEY");
@@ -73,6 +76,7 @@ serve(async (req) => {
       returnUrl: `${req.headers.get("origin")}/app/plan?success=true`,
       completionUrl: `${req.headers.get("origin")}/app/plan?success=true`,
       customer: {
+        name: userName,
         email: userEmail,
       },
     };
