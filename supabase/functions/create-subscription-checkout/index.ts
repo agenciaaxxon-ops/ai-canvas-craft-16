@@ -26,13 +26,16 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { product_id, cellphone } = await req.json();
+    const { product_id, cellphone, taxId } = await req.json();
 
     if (!product_id) {
       throw new Error("product_id is required");
     }
     if (!cellphone) {
       throw new Error("cellphone is required");
+    }
+    if (!taxId) {
+      throw new Error("taxId is required");
     }
 
     // Get product details
@@ -58,6 +61,16 @@ serve(async (req) => {
     // Extract name from email (before @) or use a default
     const userName = userEmail.split('@')[0] || 'Cliente';
 
+    // Sanitize and validate inputs
+    const sanitizedCellphone = cellphone.replace(/\D/g, "");
+    const sanitizedTaxId = taxId.replace(/\D/g, "");
+    if (sanitizedCellphone.length < 10 || sanitizedCellphone.length > 14) {
+      throw new Error("Invalid cellphone format");
+    }
+    if (!(sanitizedTaxId.length === 11 || sanitizedTaxId.length === 14)) {
+      throw new Error("Invalid taxId format");
+    }
+
     // Create Abacate Pay checkout for subscription
     const abacateApiKey = Deno.env.get("ABACATEPAY_API_KEY");
     if (!abacateApiKey) {
@@ -81,7 +94,8 @@ serve(async (req) => {
       customer: {
         name: userName,
         email: userEmail,
-        cellphone: cellphone,
+        cellphone: sanitizedCellphone,
+        taxId: sanitizedTaxId,
       },
     };
 

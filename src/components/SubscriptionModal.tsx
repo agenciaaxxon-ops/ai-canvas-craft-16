@@ -26,6 +26,7 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [cellphone, setCellphone] = useState("");
+  const [taxId, setTaxId] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -57,10 +58,22 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
     setSelectedProduct(productId);
 
     try {
-      if (!cellphone || cellphone.trim().length < 8) {
+      const phoneDigits = (cellphone || '').replace(/\D/g, '');
+      if (phoneDigits.length < 10 || phoneDigits.length > 14) {
         toast({
-          title: "Informe seu celular",
-          description: "Inclua seu número com DDD para continuar.",
+          title: "Celular inválido",
+          description: "Informe um número com DDD (somente dígitos).",
+          variant: "destructive",
+        });
+        setLoading(false);
+        setSelectedProduct(null);
+        return;
+      }
+      const taxDigits = (taxId || '').replace(/\D/g, '');
+      if (!(taxDigits.length === 11 || taxDigits.length === 14)) {
+        toast({
+          title: "CPF/CNPJ inválido",
+          description: "Informe 11 (CPF) ou 14 (CNPJ) dígitos.",
           variant: "destructive",
         });
         setLoading(false);
@@ -79,7 +92,7 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
       }
 
       const { data, error } = await supabase.functions.invoke("create-subscription-checkout", {
-        body: { product_id: productId, cellphone },
+        body: { product_id: productId, cellphone, taxId },
       });
 
       if (error) throw error;
@@ -140,6 +153,15 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
             placeholder="(11) 99999-9999"
             value={cellphone}
             onChange={(e) => setCellphone(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2 mt-3">
+          <label className="text-sm font-medium">CPF ou CNPJ</label>
+          <Input
+            type="text"
+            placeholder="Digite apenas números"
+            value={taxId}
+            onChange={(e) => setTaxId(e.target.value)}
           />
         </div>
 
@@ -205,7 +227,7 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
 
               <Button
                 onClick={() => handleSubscribe(product.id)}
-                disabled={loading || !cellphone}
+                disabled={loading || !cellphone || !taxId}
                 variant={product.is_unlimited ? "default" : "outline"}
                 className="w-full"
                 size="lg"
