@@ -116,8 +116,23 @@ serve(async (req) => {
       throw new Error(`Failed to create Abacate billing: ${errorText}`);
     }
 
-    const abacateData = await abacateResponse.json();
-    console.log("Abacate billing created:", abacateData);
+    const abacateJson = await abacateResponse.json();
+    console.log("Abacate billing created:", abacateJson);
+
+    // The Abacate API returns { error, data }. Use data if present
+    if (abacateJson?.error) {
+      console.error("Abacate API responded with error field:", abacateJson.error);
+      throw new Error(`Abacate API returned error: ${JSON.stringify(abacateJson.error)}`);
+    }
+
+    const billing = abacateJson?.data ?? abacateJson;
+    const checkoutUrl: string | undefined = billing?.url;
+    const billingId: string | undefined = billing?.id;
+
+    if (!checkoutUrl || !billingId) {
+      console.error("Abacate API missing url or id in response:", billing);
+      throw new Error("Abacate API response missing url or id");
+    }
 
     // Record the subscription purchase
     const { error: purchaseError } = await supabaseClient
@@ -128,7 +143,7 @@ serve(async (req) => {
         amount_paid: product.price_in_cents,
         tokens_granted: product.tokens_granted,
         status: "pending",
-        abacate_billing_id: abacateData.id,
+        abacate_billing_id: billingId,
       });
 
     if (purchaseError) {
@@ -138,8 +153,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        checkout_url: abacateData.url,
-        billing_id: abacateData.id,
+        checkout_url: checkoutUrl,
+        billing_id: billingId,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
