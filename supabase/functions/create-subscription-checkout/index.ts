@@ -59,7 +59,7 @@ serve(async (req) => {
     }
 
     const billingPayload = {
-      frequency: "monthly",
+      frequency: "MULTIPLE_PAYMENTS",
       methods: ["PIX"],
       products: [
         {
