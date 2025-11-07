@@ -26,10 +26,13 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { product_id } = await req.json();
+    const { product_id, cellphone } = await req.json();
 
     if (!product_id) {
       throw new Error("product_id is required");
+    }
+    if (!cellphone) {
+      throw new Error("cellphone is required");
     }
 
     // Get product details
@@ -78,6 +81,7 @@ serve(async (req) => {
       customer: {
         name: userName,
         email: userEmail,
+        cellphone: cellphone,
       },
     };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Zap, Crown } from "lucide-react";
@@ -24,6 +25,7 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [cellphone, setCellphone] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -55,6 +57,16 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
     setSelectedProduct(productId);
 
     try {
+      if (!cellphone || cellphone.trim().length < 8) {
+        toast({
+          title: "Informe seu celular",
+          description: "Inclua seu número com DDD para continuar.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        setSelectedProduct(null);
+        return;
+      }
       const product = products.find(p => p.id === productId);
       
       if (product) {
@@ -67,7 +79,7 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
       }
 
       const { data, error } = await supabase.functions.invoke("create-subscription-checkout", {
-        body: { product_id: productId },
+        body: { product_id: productId, cellphone },
       });
 
       if (error) throw error;
@@ -121,6 +133,15 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
             }
           </DialogDescription>
         </DialogHeader>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Celular (com DDD)</label>
+          <Input
+            type="tel"
+            placeholder="(11) 99999-9999"
+            value={cellphone}
+            onChange={(e) => setCellphone(e.target.value)}
+          />
+        </div>
 
         <div className="grid md:grid-cols-2 gap-6 py-4">
           {products.map((product) => (
@@ -184,7 +205,7 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
 
               <Button
                 onClick={() => handleSubscribe(product.id)}
-                disabled={loading}
+                disabled={loading || !cellphone}
                 variant={product.is_unlimited ? "default" : "outline"}
                 className="w-full"
                 size="lg"
