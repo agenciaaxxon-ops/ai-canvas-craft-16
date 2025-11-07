@@ -107,8 +107,8 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
   };
 
   return (
-    <Dialog open={open} onOpenChange={requiredForSignup ? () => {} : onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]" onPointerDownOutside={requiredForSignup ? (e) => e.preventDefault() : undefined}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <Crown className="h-7 w-7 text-primary" />
@@ -209,9 +209,18 @@ export function SubscriptionModal({ open, onOpenChange, requiredForSignup = fals
         )}
 
         {requiredForSignup && (
-          <p className="text-xs text-center text-muted-foreground">
-            * Pagamento obrigatório para ativar sua conta
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-center text-muted-foreground">
+              * Pagamento obrigatório para ativar sua conta
+            </p>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => onOpenChange(false)}
+            >
+              Pagar Depois
+            </Button>
+          </div>
         )}
       </DialogContent>
     </Dialog>

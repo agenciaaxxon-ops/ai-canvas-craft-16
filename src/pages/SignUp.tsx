@@ -29,12 +29,56 @@ const SignUp = () => {
     });
 
     if (error) {
-      toast({
-        title: "Erro ao criar conta",
-        description: error.message,
-        variant: "destructive",
-      });
-      setLoading(false);
+      // Se o usuário já existe, tenta fazer login
+      if (error.message.includes("User already registered") || error.message.includes("already exists")) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          toast({
+            title: "Erro ao acessar conta",
+            description: "Você já tem uma conta, mas a senha está incorreta. Tente fazer login.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Login bem-sucedido, verificar se tem assinatura
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("subscription_status")
+            .eq("id", user.id)
+            .single();
+
+          if (profile?.subscription_status !== 'active') {
+            toast({
+              title: "Bem-vindo de volta!",
+              description: "Você já tem uma conta. Escolha seu plano para começar a gerar imagens.",
+            });
+            setLoading(false);
+            setShowSubscriptionModal(true);
+          } else {
+            toast({
+              title: "Conta já ativa!",
+              description: "Você já tem uma assinatura ativa. Redirecionando...",
+            });
+            setLoading(false);
+            navigate("/app");
+          }
+        }
+      } else {
+        toast({
+          title: "Erro ao criar conta",
+          description: error.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
     } else {
       toast({
         title: "Conta criada com sucesso!",
@@ -109,7 +153,7 @@ const SignUp = () => {
           open={showSubscriptionModal} 
           onOpenChange={(open) => {
             setShowSubscriptionModal(open);
-            if (!open) navigate("/app");
+            if (!open) navigate("/app/plan");
           }}
           requiredForSignup={true}
         />
