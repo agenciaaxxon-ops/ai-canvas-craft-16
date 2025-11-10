@@ -1,18 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Wand2, Sparkles, Zap } from "lucide-react";
-import { useEffect } from "react";
+
 const Landing = () => {
-  useEffect(() => {
-    try {
-      const key = 'fb_pageview_landing';
-      if (!sessionStorage.getItem(key) && typeof window !== 'undefined' && (window as any).fbq) {
-        (window as any).fbq('track', 'PageView');
-        sessionStorage.setItem(key, '1');
-        console.log('Meta Pixel: PageView tracked on Landing');
-      }
-    } catch {}
-  }, []);
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary">
       {/* Header */}

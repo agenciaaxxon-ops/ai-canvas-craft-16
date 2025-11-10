@@ -145,47 +145,18 @@ export default function Admin() {
     try {
       setLoading(true);
 
-      // Load users with their purchase data
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, token_balance, created_at');
+      // Use RPC function for efficient data aggregation
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_admin_stats');
 
-      if (profilesError) throw profilesError;
+      if (rpcError) throw rpcError;
 
-      // Load purchase data for each user
-      const { data: purchasesData, error: purchasesError } = await supabase
-        .from('purchases')
-        .select('user_id, amount_paid, status, created_at')
-        .eq('status', 'completed');
-
-      if (purchasesError) throw purchasesError;
-
-      // Load generations with dates
-      const { data: generationsData } = await supabase
-        .from('generations')
-        .select('created_at, user_id');
-
-      // Store raw data
-      setAllPurchases(purchasesData || []);
-      setAllGenerations(generationsData || []);
-
-      // Calculate aggregated data per user
-      const userPurchases = purchasesData.reduce((acc, purchase) => {
-        if (!acc[purchase.user_id]) {
-          acc[purchase.user_id] = { total: 0, count: 0 };
-        }
-        acc[purchase.user_id].total += purchase.amount_paid;
-        acc[purchase.user_id].count += 1;
-        return acc;
-      }, {} as Record<string, { total: number; count: number }>);
-
-      const usersWithStats = profilesData.map(profile => ({
-        ...profile,
-        total_spent: userPurchases[profile.id]?.total || 0,
-        total_purchases: userPurchases[profile.id]?.count || 0,
-      }));
-
-      setUsers(usersWithStats);
+      // Parse the JSON response
+      const parsedData = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
+      
+      setUsers(parsedData.users || []);
+      setAllPurchases(parsedData.purchases || []);
+      setAllGenerations(parsedData.generations || []);
     } catch (error) {
       console.error('Error loading admin data:', error);
       toast.error("Erro ao carregar dados");

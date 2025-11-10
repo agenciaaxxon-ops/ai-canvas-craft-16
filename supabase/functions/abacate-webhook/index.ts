@@ -90,11 +90,11 @@ serve(async (req) => {
       );
 
       // Try resolve purchase by externalId first (our purchase.id)
-      let purchase: { user_id: string; tokens_granted: number; status: string; product_id: string } | null = null;
+      let purchase: { user_id: string; tokens_granted: number; status: string; product_id: string; amount_paid: number } | null = null;
       if (externalId) {
         const { data: byExternal } = await supabaseAdmin
           .from('purchases')
-          .select('user_id, tokens_granted, status, product_id')
+          .select('user_id, tokens_granted, status, product_id, amount_paid')
           .eq('id', externalId)
           .maybeSingle();
         if (byExternal) purchase = byExternal as any;
@@ -104,7 +104,7 @@ serve(async (req) => {
       if (!purchase && billingId) {
         const { data: byBilling } = await supabaseAdmin
           .from('purchases')
-          .select('user_id, tokens_granted, status, product_id')
+          .select('user_id, tokens_granted, status, product_id, amount_paid')
           .eq('abacate_billing_id', billingId)
           .maybeSingle();
         if (byBilling) purchase = byBilling as any;
@@ -176,8 +176,42 @@ serve(async (req) => {
       if (purchaseError) {
         console.error('Error updating purchase:', purchaseError);
       } else {
-        console.log(`Successfully activated subscription for user ${purchase.user_id}`);
+      console.log(`Successfully activated subscription for user ${purchase.user_id}`);
+      
+      // Track purchase with Facebook Conversions API (server-side, more reliable)
+      try {
+        const fbAccessToken = Deno.env.get('FACEBOOK_CONVERSIONS_API_TOKEN');
+        if (fbAccessToken) {
+          await fetch(`https://graph.facebook.com/v18.0/2216647755491538/events`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              data: [{
+                event_name: 'Purchase',
+                event_time: Math.floor(Date.now() / 1000),
+                action_source: 'website',
+                user_data: {
+                  external_id: purchase.user_id,
+                },
+                custom_data: {
+                  currency: 'BRL',
+                  value: purchase.amount_paid / 100,
+                  content_ids: [purchase.product_id],
+                  content_name: product?.name || 'Subscription',
+                },
+              }],
+              access_token: fbAccessToken,
+            }),
+          });
+          console.log('Facebook Conversions API: Purchase tracked');
+        }
+      } catch (fbError) {
+        console.error('Error tracking Facebook conversion:', fbError);
+        // Don't fail the webhook if tracking fails
       }
+    }
     }
 
     return new Response(
