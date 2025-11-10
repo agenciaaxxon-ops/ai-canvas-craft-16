@@ -68,64 +68,6 @@ const Generate = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Check subscription status
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('subscription_status, subscription_plan, monthly_usage, monthly_reset_date')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        console.warn('Falha ao verificar assinatura:', profileError);
-      }
-
-      // Check if subscription is active
-      if (!profile || profile.subscription_status !== 'active') {
-        setShowSubscriptionModal(true);
-        setLoading(false);
-        toast({ 
-          title: 'Assinatura inativa', 
-          description: 'Você precisa de uma assinatura ativa para gerar imagens.',
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      // Check if monthly reset is needed
-      const resetDate = profile.monthly_reset_date ? new Date(profile.monthly_reset_date) : null;
-      if (resetDate && resetDate < new Date()) {
-        // Reset monthly usage
-        await supabase
-          .from('profiles')
-          .update({ 
-            monthly_usage: 0,
-            monthly_reset_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString()
-          })
-          .eq('id', user.id);
-      }
-
-      // Get product info to check if plan is unlimited
-      const { data: products } = await supabase
-        .from('products')
-        .select('is_unlimited, tokens_granted')
-        .ilike('name', `%${profile.subscription_plan}%`)
-        .single();
-
-      // Check monthly limit for non-unlimited plans
-      if (products && !products.is_unlimited) {
-        const currentUsage = profile.monthly_usage || 0;
-        if (currentUsage >= products.tokens_granted) {
-          setShowSubscriptionModal(true);
-          setLoading(false);
-          toast({ 
-            title: 'Limite mensal atingido', 
-            description: 'Você atingiu o limite de imagens do seu plano. Faça upgrade para o plano ilimitado!',
-            variant: 'destructive'
-          });
-          return;
-        }
-      }
-
       // Upload original image
       const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -144,7 +86,7 @@ const Generate = () => {
       const sUrl = signed.signedUrl;
       const originalSignedUrl = sUrl.startsWith("http") ? sUrl : `${baseUrl}${sUrl}`;
 
-      // Call edge function to generate image
+      // Call edge function (backend now handles ALL subscription validation)
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
           prompt_product: product,
@@ -157,14 +99,13 @@ const Generate = () => {
       if (error) {
         console.error("Edge function error:", error);
         
-        // Check if it's subscription error
+        // Check if it's subscription error (show modal)
         const anyErr: any = error as any;
         const statusCode = anyErr?.context?.response?.status;
         
         if (statusCode === 402 || 
-            error.message?.includes("insuficient") || 
-            error.message?.includes("subscription") ||
-            error.message?.includes("limit")) {
+            error.message?.includes("Assinatura") || 
+            error.message?.includes("Limite")) {
           setShowSubscriptionModal(true);
           setLoading(false);
           return;
@@ -191,20 +132,6 @@ const Generate = () => {
         setErrorMessage(msg);
         toast({ title: "Erro ao gerar imagem", description: msg, variant: "destructive" });
         return;
-      }
-
-      // Increment monthly usage
-      const { data: currentProfile } = await supabase
-        .from('profiles')
-        .select('monthly_usage')
-        .eq('id', user.id)
-        .single();
-      
-      if (currentProfile) {
-        await supabase
-          .from('profiles')
-          .update({ monthly_usage: (currentProfile.monthly_usage || 0) + 1 })
-          .eq('id', user.id);
       }
 
       setGeneratedUrl(data.generated_image_url);
