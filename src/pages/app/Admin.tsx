@@ -151,12 +151,12 @@ export default function Admin() {
 
       if (rpcError) throw rpcError;
 
-      // Parse the JSON response
-      const parsedData = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
+      // The RPC returns the JSON object directly
+      const statsData = (rpcData as any) || { users: [], purchases: [], generations: [] };
       
-      setUsers(parsedData.users || []);
-      setAllPurchases(parsedData.purchases || []);
-      setAllGenerations(parsedData.generations || []);
+      setUsers(statsData.users || []);
+      setAllPurchases(statsData.purchases || []);
+      setAllGenerations(statsData.generations || []);
     } catch (error) {
       console.error('Error loading admin data:', error);
       toast.error("Erro ao carregar dados");
