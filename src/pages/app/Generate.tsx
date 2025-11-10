@@ -99,31 +99,49 @@ const Generate = () => {
       if (error) {
         console.error("Edge function error:", error);
         
-        // Check if it's subscription error (show modal)
+        // Parse error to get details
         const anyErr: any = error as any;
-        const statusCode = anyErr?.context?.response?.status;
+        let errorMsg = error.message || "Erro ao gerar imagem";
+        let isSubscriptionError = false;
         
-        if (statusCode === 402 || 
-            error.message?.includes("Assinatura") || 
-            error.message?.includes("Limite")) {
-          setShowSubscriptionModal(true);
-          setLoading(false);
-          return;
-        }
-
-        let specific = "";
+        // Try to extract error from FunctionsHttpError or FunctionsFetchError
         try {
-          const res = anyErr?.context?.response;
-          if (res && typeof res.json === "function") {
-            const body = await res.json();
-            specific = body?.error || body?.message || "";
+          if (anyErr?.context?.body) {
+            const body = anyErr.context.body;
+            if (body?.error) {
+              errorMsg = body.error;
+            }
           }
         } catch (e) {
-          console.warn("Failed to parse function error body", e);
+          console.warn("Failed to parse error body", e);
         }
-        const msg = specific || error.message || "Erro desconhecido ao gerar imagem";
-        setErrorMessage(msg);
-        toast({ title: "Erro ao gerar imagem", description: msg, variant: "destructive" });
+        
+        // Check if it's subscription related (402 or specific messages)
+        if (errorMsg.includes("Assinatura") || 
+            errorMsg.includes("Limite") ||
+            errorMsg.includes("inativa") ||
+            errorMsg.includes("plano")) {
+          isSubscriptionError = true;
+        }
+        
+        if (isSubscriptionError) {
+          setShowSubscriptionModal(true);
+          setErrorMessage(errorMsg);
+          toast({ 
+            title: "Assinatura necessária", 
+            description: errorMsg, 
+            variant: "destructive" 
+          });
+        } else {
+          setErrorMessage(errorMsg);
+          toast({ 
+            title: "Erro ao gerar imagem", 
+            description: errorMsg, 
+            variant: "destructive" 
+          });
+        }
+        
+        setLoading(false);
         return;
       }
 
