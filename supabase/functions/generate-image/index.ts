@@ -170,7 +170,7 @@ serve(async (req) => {
             contents: [{
               parts: contentParts
             }],
-            generationConfig: { responseModalities: ['IMAGE'] }
+            generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
           }),
         }
       );
