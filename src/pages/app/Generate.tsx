@@ -116,13 +116,16 @@ const Generate = () => {
           console.warn("Failed to parse error body", e);
         }
         
-        // Check if it's subscription related (402 or specific messages)
+        // Check if it's subscription related or AI credits exhaustion
         if (errorMsg.includes("Assinatura") || 
             errorMsg.includes("Limite") ||
             errorMsg.includes("inativa") ||
             errorMsg.includes("plano")) {
           isSubscriptionError = true;
         }
+
+        const isAICreditsError = /Not enough credits|payment_required|AI gateway/i.test(errorMsg) 
+          || anyErr?.context?.body?.type === 'payment_required';
         
         if (isSubscriptionError) {
           setShowSubscriptionModal(true);
@@ -131,6 +134,15 @@ const Generate = () => {
             title: "Assinatura necessária", 
             description: errorMsg, 
             variant: "destructive" 
+          });
+        } else if (isAICreditsError) {
+          const friendly = "Serviço de geração temporariamente indisponível (créditos do provedor esgotados). Tente novamente em alguns minutos.";
+          setShowSubscriptionModal(false);
+          setErrorMessage(friendly);
+          toast({
+            title: "Serviço indisponível",
+            description: friendly,
+            variant: "destructive",
           });
         } else {
           setErrorMessage(errorMsg);
