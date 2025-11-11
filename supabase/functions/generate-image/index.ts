@@ -202,7 +202,9 @@ serve(async (req) => {
 
     // Parse Google AI Studio response format
     const aiData = await aiResponse.json();
-    const imageBase64: string | undefined = aiData?.candidates?.[0]?.content?.parts?.[0]?.inline_data?.data;
+    const parts = aiData?.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find((p: any) => p?.inline_data?.data);
+    const imageBase64: string | undefined = imagePart?.inline_data?.data;
     
     if (!imageBase64) {
       console.error('Invalid Google AI Studio response:', JSON.stringify(aiData));
