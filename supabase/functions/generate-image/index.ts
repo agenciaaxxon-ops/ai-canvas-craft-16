@@ -116,6 +116,29 @@ serve(async (req) => {
       }
     }
 
+    // Helper: truncate long strings for logs
+    function truncate(str: string, max = 1200) {
+      if (!str) return str as unknown as string;
+      return str.length > max ? str.slice(0, max) + '…[truncated]' : str;
+    }
+
+    // Helper: summarize AI response without logging large payloads
+    function summarizeAiResponse(ai: any) {
+      const parts = ai?.candidates?.[0]?.content?.parts || [];
+      const partsSummary = parts.map((p: any, idx: number) => ({
+        index: idx,
+        hasInlineData: Boolean(p?.inline_data || p?.inlineData),
+        hasText: typeof p?.text === 'string',
+        keys: Object.keys(p || {})
+      }));
+      return {
+        promptFeedback: ai?.promptFeedback ?? null,
+        finishReason: ai?.candidates?.[0]?.finishReason || ai?.candidates?.[0]?.finish_reason || null,
+        candidatesCount: Array.isArray(ai?.candidates) ? ai.candidates.length : 0,
+        partsSummary,
+      };
+    }
+
     const buildContent = async (withImage: boolean) => {
       const parts: any[] = [{ text: prompt }];
       if (withImage && original_image_url) {
@@ -158,7 +181,7 @@ serve(async (req) => {
 
     if (!aiResponse.ok) {
       responseText = await aiResponse.text();
-      console.error('Google AI Studio error:', aiResponse.status, responseText);
+      console.error('Google AI Studio error:', aiResponse.status, truncate(responseText || '', 1200));
 
       // Handle rate limits and quota errors
       if (aiResponse.status === 429) {
@@ -203,6 +226,7 @@ serve(async (req) => {
 
     // Parse Google AI Studio response format
     const aiData = await aiResponse.json();
+    console.log('AI response summary:', JSON.stringify(summarizeAiResponse(aiData)));
     const parts = aiData?.candidates?.[0]?.content?.parts || [];
     const imagePart = parts.find((p: any) => (p?.inline_data?.data) || (p?.inlineData?.data));
     const imageBase64: string | undefined = imagePart?.inline_data?.data || imagePart?.inlineData?.data;
