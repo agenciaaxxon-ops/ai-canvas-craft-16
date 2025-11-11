@@ -87,10 +87,10 @@ serve(async (req) => {
       );
     }
 
-    // Generate image using Lovable AI (Gemini image model)
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not configured');
+    // Generate image using Google AI Studio (Gemini 2.5 Flash Image)
+    const GOOGLE_AI_STUDIO_API_KEY = Deno.env.get('GOOGLE_AI_STUDIO_API_KEY');
+    if (!GOOGLE_AI_STUDIO_API_KEY) {
+      console.error('GOOGLE_AI_STUDIO_API_KEY is not configured');
       return new Response(
         JSON.stringify({ error: 'Configuração de IA ausente' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -102,62 +102,94 @@ serve(async (req) => {
 
     const prompt = `Gere uma foto de produto de alta qualidade: ${prompt_product}. Modelo: ${prompt_model}. Cenário: ${prompt_scene}. Estilo realista, iluminação suave, 1024x1024.`;
 
-    const buildContent = (withImage: boolean) => {
-      const arr: any[] = [{ type: 'text', text: prompt }];
-      if (withImage && original_image_url) {
-        arr.push({ type: 'image_url', image_url: { url: original_image_url } });
+    // Helper function to convert image URL to base64
+    async function fetchImageAsBase64(url: string): Promise<string> {
+      try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+        return btoa(binaryString);
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+        throw error;
       }
-      return arr;
+    }
+
+    const buildContent = async (withImage: boolean) => {
+      const parts: any[] = [{ text: prompt }];
+      if (withImage && original_image_url) {
+        try {
+          const imageBase64 = await fetchImageAsBase64(original_image_url);
+          parts.push({
+            inline_data: {
+              mime_type: 'image/jpeg',
+              data: imageBase64
+            }
+          });
+        } catch (error) {
+          console.error('Failed to fetch original image, proceeding without it:', error);
+        }
+      }
+      return parts;
     };
 
     async function callAI(withImage: boolean) {
-      return await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-image-preview',
-          messages: [
-            {
-              role: 'user',
-              content: buildContent(withImage),
-            },
-          ],
-          modalities: ['image', 'text'],
-        }),
-      });
+      const contentParts = await buildContent(withImage);
+      return await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: contentParts
+            }],
+            generationConfig: {
+              response_modalities: ['IMAGE'],
+              response_mime_type: 'image/jpeg'
+            }
+          }),
+        }
+      );
     }
 
     let aiResponse = await callAI(true);
 
     if (!aiResponse.ok) {
       const text = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, text);
+      console.error('Google AI Studio error:', aiResponse.status, text);
 
-      if (aiResponse.status === 429 || aiResponse.status === 402) {
-        const status = aiResponse.status;
+      // Handle rate limits and quota errors
+      if (aiResponse.status === 429) {
         return new Response(
           JSON.stringify({
-            error:
-              status === 429
-                ? 'Limite de requisições excedido, tente novamente mais tarde.'
-                : 'Créditos de IA esgotados. Adicione créditos para continuar.',
+            error: 'Limite de requisições excedido, tente novamente mais tarde.'
           }),
-          { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Retry once without the image if the provider failed to fetch it
-      if (text?.includes('Failed to extract 1 image')) {
-        console.warn('Retrying AI generation without image due to extraction failure');
+      // Handle authentication errors
+      if (aiResponse.status === 401 || aiResponse.status === 403) {
+        console.error('Google AI Studio authentication error');
+        return new Response(
+          JSON.stringify({ error: 'Erro de autenticação com Google AI Studio' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Retry once without the image if error suggests image processing issue
+      if (text?.includes('image') || text?.includes('fetch')) {
+        console.warn('Retrying AI generation without image due to possible image issue');
         aiResponse = await callAI(false);
       }
 
       if (!aiResponse.ok) {
         const t2 = await aiResponse.text();
-        console.error('AI gateway final error:', aiResponse.status, t2);
+        console.error('Google AI Studio final error:', aiResponse.status, t2);
         return new Response(
           JSON.stringify({ error: 'Erro ao gerar imagem com IA' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -165,15 +197,29 @@ serve(async (req) => {
       }
     }
 
+    // Parse Google AI Studio response format
     const aiData = await aiResponse.json();
-    const dataUrl: string | undefined = aiData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!dataUrl || !dataUrl.startsWith('data:image')) {
-      console.error('Invalid AI response:', aiData);
+    const imageBase64: string | undefined = aiData?.candidates?.[0]?.content?.parts?.[0]?.inline_data?.data;
+    
+    if (!imageBase64) {
+      console.error('Invalid Google AI Studio response:', JSON.stringify(aiData));
+      
+      // Check for safety filters
+      if (aiData?.promptFeedback?.blockReason || aiData?.candidates?.[0]?.finishReason === 'SAFETY') {
+        return new Response(
+          JSON.stringify({ error: 'Conteúdo bloqueado por filtros de segurança. Tente com prompts diferentes.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Resposta inválida do provedor de IA' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Convert base64 to data URL
+    const dataUrl = `data:image/jpeg;base64,${imageBase64}`;
 
     // Convert data URL to bytes
     const [meta, base64Data] = dataUrl.split(',');
