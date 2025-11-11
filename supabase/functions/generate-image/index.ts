@@ -137,7 +137,7 @@ serve(async (req) => {
     async function callAI(withImage: boolean) {
       const contentParts = await buildContent(withImage);
       return await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
         {
           method: 'POST',
           headers: {
@@ -146,7 +146,8 @@ serve(async (req) => {
           body: JSON.stringify({
             contents: [{
               parts: contentParts
-            }]
+            }],
+            generationConfig: { responseModalities: ['IMAGE'] }
           }),
         }
       );
@@ -203,8 +204,8 @@ serve(async (req) => {
     // Parse Google AI Studio response format
     const aiData = await aiResponse.json();
     const parts = aiData?.candidates?.[0]?.content?.parts || [];
-    const imagePart = parts.find((p: any) => p?.inline_data?.data);
-    const imageBase64: string | undefined = imagePart?.inline_data?.data;
+    const imagePart = parts.find((p: any) => (p?.inline_data?.data) || (p?.inlineData?.data));
+    const imageBase64: string | undefined = imagePart?.inline_data?.data || imagePart?.inlineData?.data;
     
     if (!imageBase64) {
       console.error('Invalid Google AI Studio response:', JSON.stringify(aiData));
