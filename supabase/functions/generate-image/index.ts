@@ -37,7 +37,7 @@ serve(async (req) => {
       );
     }
 
-    const { prompt_product, prompt_model, prompt_scene, original_image_url } = await req.json();
+    const { prompt_product, prompt_model, prompt_scene, prompt_observations, original_image_url } = await req.json();
 
     // CRITICAL: Verify subscription status and usage limits in BACKEND
     const { data: profile, error: profileError } = await supabaseClient
@@ -100,7 +100,8 @@ serve(async (req) => {
     // Debug original image URL
     console.log('generate-image original_image_url:', original_image_url);
 
-    const prompt = `Gere uma foto de produto de alta qualidade: ${prompt_product}. Modelo: ${prompt_model}. Cenário: ${prompt_scene}. Estilo realista, iluminação suave, 1024x1024.`;
+    const observationsText = prompt_observations ? ` Observações adicionais: ${prompt_observations}.` : '';
+    const prompt = `Gere uma foto de produto de alta qualidade: ${prompt_product}. Modelo: ${prompt_model}. Cenário: ${prompt_scene}.${observationsText} Estilo realista, iluminação suave, 1024x1024.`;
 
     // Helper function to convert image URL to base64
     async function fetchImageAsBase64(url: string): Promise<string> {
@@ -289,6 +290,7 @@ serve(async (req) => {
         prompt_product,
         prompt_model,
         prompt_scene,
+        prompt_observations: prompt_observations || null,
         original_image_url,
         generated_image_url,
       });

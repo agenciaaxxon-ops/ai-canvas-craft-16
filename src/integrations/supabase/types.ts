@@ -21,6 +21,7 @@ export type Database = {
           id: string
           original_image_url: string
           prompt_model: string
+          prompt_observations: string | null
           prompt_product: string
           prompt_scene: string
           user_id: string
@@ -31,6 +32,7 @@ export type Database = {
           id?: string
           original_image_url: string
           prompt_model: string
+          prompt_observations?: string | null
           prompt_product: string
           prompt_scene: string
           user_id: string
@@ -41,6 +43,7 @@ export type Database = {
           id?: string
           original_image_url?: string
           prompt_model?: string
+          prompt_observations?: string | null
           prompt_product?: string
           prompt_scene?: string
           user_id?: string

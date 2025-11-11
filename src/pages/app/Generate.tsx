@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +16,7 @@ const Generate = () => {
   const [product, setProduct] = useState("");
   const [model, setModel] = useState("");
   const [scene, setScene] = useState("");
+  const [observations, setObservations] = useState("");
   const [loading, setLoading] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -92,6 +94,7 @@ const Generate = () => {
           prompt_product: product,
           prompt_model: model,
           prompt_scene: scene,
+          prompt_observations: observations,
           original_image_url: originalSignedUrl,
         },
       });
@@ -277,6 +280,21 @@ const Generate = () => {
                 value={scene}
                 onChange={(e) => setScene(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="observations">Observações (Opcional)</Label>
+              <Textarea
+                id="observations"
+                placeholder="Ex: foco no produto, foto de celular, fundo desfocado"
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                maxLength={100}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {observations.length}/100
+              </p>
             </div>
 
             <Button
