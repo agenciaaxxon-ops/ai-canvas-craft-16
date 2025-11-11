@@ -146,21 +146,18 @@ serve(async (req) => {
           body: JSON.stringify({
             contents: [{
               parts: contentParts
-            }],
-            generationConfig: {
-              response_modalities: ['IMAGE'],
-              response_mime_type: 'image/jpeg'
-            }
+            }]
           }),
         }
       );
     }
 
     let aiResponse = await callAI(true);
+    let responseText: string | null = null;
 
     if (!aiResponse.ok) {
-      const text = await aiResponse.text();
-      console.error('Google AI Studio error:', aiResponse.status, text);
+      responseText = await aiResponse.text();
+      console.error('Google AI Studio error:', aiResponse.status, responseText);
 
       // Handle rate limits and quota errors
       if (aiResponse.status === 429) {
@@ -182,14 +179,20 @@ serve(async (req) => {
       }
 
       // Retry once without the image if error suggests image processing issue
-      if (text?.includes('image') || text?.includes('fetch')) {
+      if (responseText?.includes('image') || responseText?.includes('fetch')) {
         console.warn('Retrying AI generation without image due to possible image issue');
         aiResponse = await callAI(false);
-      }
-
-      if (!aiResponse.ok) {
-        const t2 = await aiResponse.text();
-        console.error('Google AI Studio final error:', aiResponse.status, t2);
+        responseText = null; // Reset for the new response
+        
+        if (!aiResponse.ok) {
+          responseText = await aiResponse.text();
+          console.error('Google AI Studio final error:', aiResponse.status, responseText);
+          return new Response(
+            JSON.stringify({ error: 'Erro ao gerar imagem com IA' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
         return new Response(
           JSON.stringify({ error: 'Erro ao gerar imagem com IA' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
