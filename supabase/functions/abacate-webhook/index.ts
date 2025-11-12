@@ -47,7 +47,7 @@ serve(async (req) => {
     // Verify webhook: accept secret via query param or headers, or a valid HMAC signature
     const expectedSecret = Deno.env.get('ABACATEPAY_WEBHOOK_SECRET') || '';
     const url = new URL(req.url);
-    const qsSecret = url.searchParams.get('webhookSecret');
+    const qsSecret = url.searchParams.get('webhookSecret') || url.searchParams.get('secret');
     const headerSecret = req.headers.get('X-Webhook-Secret') || req.headers.get('X-Abacatepay-Secret');
 
     // Read raw body once so we can both verify HMAC and parse JSON
