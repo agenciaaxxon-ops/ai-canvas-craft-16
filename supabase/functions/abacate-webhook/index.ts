@@ -175,6 +175,19 @@ serve(async (req) => {
         );
       }
 
+      // Add tokens for non-unlimited plans
+      if (!product?.is_unlimited && purchase.tokens_granted > 0) {
+        const { error: tokenError } = await supabaseAdmin.rpc('add_tokens', {
+          p_user_id: purchase.user_id,
+          p_tokens: purchase.tokens_granted
+        });
+        if (tokenError) {
+          console.error('Error adding tokens to user balance:', tokenError);
+        } else {
+          console.log(`Added ${purchase.tokens_granted} tokens to user ${purchase.user_id}`);
+        }
+      }
+
       // Update purchase status
       const updateFilter = externalId 
         ? { id: externalId }
