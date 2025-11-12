@@ -1,26 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const ABACATEPAY_PUBLIC_KEY = "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9";
+// Use the secret from environment to validate HMAC signatures
+async function verifyHmacSignature(rawBody: string, signatureFromHeader?: string | null): Promise<boolean> {
+  try {
+    const secret = Deno.env.get('ABACATEPAY_WEBHOOK_SECRET') || '';
+    if (!secret || !signatureFromHeader) return false;
 
-async function verifyHmacSignature(rawBody: string, signatureFromHeader: string): Promise<boolean> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(ABACATEPAY_PUBLIC_KEY),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(rawBody)
-  );
-  
-  const expectedSig = btoa(String.fromCharCode(...new Uint8Array(signature)));
-  return expectedSig === signatureFromHeader;
+    // Some providers prefix the signature with the algorithm (e.g., "sha256=...")
+    const provided = signatureFromHeader.replace(/^sha256=/i, "");
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const sigBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(rawBody));
+
+    // Compare against both base64 and hex encodings to be robust
+    const expectedBase64 = btoa(String.fromCharCode(...new Uint8Array(sigBuffer)));
+    const expectedHex = Array.from(new Uint8Array(sigBuffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    return provided === expectedBase64 || provided.toLowerCase() === expectedHex;
+  } catch (_e) {
+    return false;
+  }
 }
 
 const corsHeaders = {
@@ -34,37 +44,39 @@ serve(async (req) => {
   }
 
   try {
-    // CRITICAL SECURITY: Verify webhook authenticity
+    // Verify webhook: accept secret via query param or headers, or a valid HMAC signature
+    const expectedSecret = Deno.env.get('ABACATEPAY_WEBHOOK_SECRET') || '';
     const url = new URL(req.url);
-    const webhookSecret = url.searchParams.get('webhookSecret');
-    const expectedSecret = Deno.env.get('ABACATEPAY_WEBHOOK_SECRET');
-    
-    if (!expectedSecret || webhookSecret !== expectedSecret) {
-      console.error('Invalid webhook secret');
+    const qsSecret = url.searchParams.get('webhookSecret');
+    const headerSecret = req.headers.get('X-Webhook-Secret') || req.headers.get('X-Abacatepay-Secret');
+
+    // Read raw body once so we can both verify HMAC and parse JSON
+    const rawBody = await req.text();
+
+    // Try common signature headers
+    const signature =
+      req.headers.get('X-Abacatepay-Signature') ||
+      req.headers.get('X-Webhook-Signature') ||
+      req.headers.get('X-Signature');
+
+    const isHmacValid = await verifyHmacSignature(rawBody, signature);
+    const isSecretOk = expectedSecret
+      ? (qsSecret === expectedSecret || headerSecret === expectedSecret)
+      : false;
+
+    if (!isSecretOk && !isHmacValid) {
+      console.error('Unauthorized webhook: secret/signature validation failed');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify HMAC signature for payload integrity
-    const signature = req.headers.get('X-Webhook-Signature');
-    if (signature) {
-      const rawBody = await req.text();
-      const isValid = await verifyHmacSignature(rawBody, signature);
-      if (!isValid) {
-        console.error('Invalid HMAC signature');
-        return new Response(
-          JSON.stringify({ error: 'Invalid signature' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      var body = JSON.parse(rawBody);
-    } else {
-      var body = await req.json();
-    }
-    
-    console.log('Received verified Abacate Pay webhook:', JSON.stringify(body));
+    const body = rawBody ? JSON.parse(rawBody) : {};
+    console.log(
+      'Received verified Abacate Pay webhook:',
+      JSON.stringify({ event: body?.event, via: isHmacValid ? 'hmac' : 'secret' })
+    );
 
     // Abacate Pay webhook structure
     const { event, data } = body;
