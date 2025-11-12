@@ -216,18 +216,18 @@ const Generate = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <h1 className="text-4xl font-bold mb-8">Gerar Nova Imagem</h1>
+      <h1 className="text-4xl font-bold mb-8 gradient-text">Gerar Nova Imagem</h1>
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left Column - Form */}
-        <div className="space-y-6 bg-card p-6 rounded-xl border border-border/40">
+        <div className="space-y-6 glass-card p-6 rounded-xl">
           <div className="space-y-4">
             <div>
               <Label htmlFor="file-upload" className="text-base">Imagem Original</Label>
               <div className="mt-2">
                 <label
                   htmlFor="file-upload"
-                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer hover:border-primary/50 transition-colors"
+                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed glass-card rounded-xl cursor-pointer hover:border-primary/50 hover:shadow-glow-primary transition-all"
                 >
                   {previewUrl ? (
                     <img
@@ -259,6 +259,7 @@ const Generate = () => {
                 placeholder="Ex: Tornozeleira"
                 value={product}
                 onChange={(e) => setProduct(e.target.value)}
+                className="glass-card"
               />
             </div>
 
@@ -269,6 +270,7 @@ const Generate = () => {
                 placeholder="Ex: Mulher"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
+                className="glass-card"
               />
             </div>
 
@@ -279,6 +281,7 @@ const Generate = () => {
                 placeholder="Ex: Praia"
                 value={scene}
                 onChange={(e) => setScene(e.target.value)}
+                className="glass-card"
               />
             </div>
 
@@ -290,7 +293,7 @@ const Generate = () => {
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 maxLength={100}
-                className="resize-none"
+                className="resize-none glass-card"
               />
               <p className="text-xs text-muted-foreground text-right">
                 {observations.length}/100
@@ -320,25 +323,28 @@ const Generate = () => {
         </div>
 
         {/* Right Column - Result */}
-        <div className="bg-card p-6 rounded-xl border border-border/40">
+        <div className="glass-card p-6 rounded-xl">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold">Imagem Gerada</h3>
             {generatedUrl && !loading && (
-              <Button onClick={handleDownload} variant="outline" size="sm">
+              <Button onClick={handleDownload} variant="glass" size="sm">
                 <Download className="h-4 w-4 mr-2" />
                 Baixar
               </Button>
             )}
           </div>
           {errorMessage && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant="destructive" className="mb-4 glass-card">
               <AlertTitle>Erro ao gerar imagem</AlertTitle>
               <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
           )}
-          <div className="aspect-square rounded-xl bg-muted/50 flex items-center justify-center overflow-hidden">
+          <div className="aspect-square rounded-xl glass-card flex items-center justify-center overflow-hidden">
             {loading ? (
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Gerando sua imagem...</p>
+              </div>
             ) : generatedUrl ? (
               <img
                 src={generatedUrl}

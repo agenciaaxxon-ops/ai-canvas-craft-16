@@ -3,11 +3,12 @@ import { Navigate, Outlet, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Wand2, Image, Plus, Shield } from "lucide-react";
+import { Wand2, Image, Plus, Shield } from "lucide-react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { TokensModal } from "@/components/TokensModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import fotosmart from "@/assets/fotosmart-logo.svg";
 
 const AppLayout = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -91,9 +92,10 @@ const AppLayout = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin">
-          <Sparkles className="h-8 w-8 text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-hero">
+        <div className="text-center space-y-4">
+          <img src={fotosmart} alt="FotoSmart" className="h-16 w-16 mx-auto animate-pulse" />
+          <p className="text-sm text-muted-foreground">Carregando...</p>
         </div>
       </div>
     );
@@ -104,15 +106,15 @@ const AppLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary">
+    <div className="min-h-screen bg-gradient-hero">
       {/* Header */}
-      <header className="border-b border-border/40 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="glass-card border-b border-border/40 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
-              <Link to="/app" className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold">Estúdio AI</span>
+              <Link to="/app" className="flex items-center gap-3 group">
+                <img src={fotosmart} alt="FotoSmart" className="h-10 w-10 transition-transform group-hover:scale-110" />
+                <span className="text-2xl font-bold gradient-text">FotoSmart</span>
               </Link>
               
               <nav className="hidden md:flex items-center gap-4">
@@ -144,8 +146,8 @@ const AppLayout = () => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 cursor-default">
-                        <span className="font-semibold">{profile?.token_balance ?? 0}</span>
+                      <div className="glass-card flex items-center gap-2 px-4 py-2 rounded-lg cursor-default">
+                        <span className="font-bold text-lg gradient-text">{profile?.token_balance ?? 0}</span>
                         <span className="text-xs text-muted-foreground">imagens</span>
                       </div>
                     </TooltipTrigger>
@@ -157,7 +159,7 @@ const AppLayout = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-9 w-9 glass-button"
                   onClick={() => setShowTokensModal(true)}
                 >
                   <Plus className="h-4 w-4" />

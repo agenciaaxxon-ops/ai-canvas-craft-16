@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles } from "lucide-react";
+import fotosmart from "@/assets/fotosmart-logo.svg";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -37,12 +37,12 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-hero px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <Sparkles className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">Estúdio AI</span>
+          <Link to="/" className="inline-flex items-center gap-3 mb-6 group">
+            <img src={fotosmart} alt="FotoSmart" className="h-12 w-12 transition-transform group-hover:scale-110" />
+            <span className="text-3xl font-bold gradient-text">FotoSmart</span>
           </Link>
           <h2 className="text-3xl font-bold">Bem-vindo de volta</h2>
           <p className="text-muted-foreground mt-2">
@@ -50,7 +50,7 @@ const SignIn = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSignIn} className="space-y-6 bg-card p-8 rounded-xl border border-border/40">
+        <form onSubmit={handleSignIn} className="space-y-6 glass-card p-8 rounded-xl">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -60,6 +60,7 @@ const SignIn = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="glass-card"
             />
           </div>
 
@@ -72,6 +73,7 @@ const SignIn = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              className="glass-card"
             />
           </div>
 

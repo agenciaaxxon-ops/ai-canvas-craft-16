@@ -8,92 +8,106 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
+    /* Liquid Glass - Dark Theme Base */
+    --background: 240 10% 8%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 4.9%;
+    /* Glass Cards with transparency */
+    --card: 240 10% 12%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 4.9%;
+    --popover: 240 10% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 263 70% 50.4%;
+    /* FotoSmart Brand Gradient Colors - #8C65FF → #E695FF */
+    --primary: 267 100% 70%;
+    --primary-glow: 302 100% 80%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 3.7% 15.9%;
+    /* Glass effect secondary */
+    --secondary: 240 8% 15%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 240 5% 18%;
+    --muted-foreground: 240 5% 65%;
 
-    --accent: 217 91% 60%;
+    /* Accent from gradient */
+    --accent: 267 100% 70%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 263 70% 50.4%;
+    /* Glass borders */
+    --border: 240 8% 20%;
+    --input: 240 8% 15%;
+    --ring: 267 100% 70%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
     
-    --gradient-primary: linear-gradient(135deg, hsl(263 70% 50.4%), hsl(217 91% 60%));
-    --gradient-hero: linear-gradient(180deg, hsl(240 10% 3.9%), hsl(240 10% 7%));
+    /* Liquid Glass Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(267 100% 70%), hsl(302 100% 80%));
+    --gradient-hero: linear-gradient(180deg, hsl(240 10% 8%), hsl(240 10% 12%));
+    --gradient-glass: linear-gradient(135deg, rgba(140, 101, 255, 0.1), rgba(230, 149, 255, 0.1));
+    
+    /* Glass effects */
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-hover: rgba(255, 255, 255, 0.08);
+    
+    /* Shadows and glows */
+    --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --glow-primary: 0 0 40px rgba(140, 101, 255, 0.3);
+    --glow-accent: 0 0 40px rgba(230, 149, 255, 0.3);
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 267 100% 70%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 240 10% 8%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 4.9%;
+    --card: 240 10% 12%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 4.9%;
+    --popover: 240 10% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 263 70% 50.4%;
+    --primary: 267 100% 70%;
+    --primary-glow: 302 100% 80%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 3.7% 15.9%;
+    --secondary: 240 8% 15%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 240 5% 18%;
+    --muted-foreground: 240 5% 65%;
 
-    --accent: 217 91% 60%;
+    --accent: 267 100% 70%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 263 70% 50.4%;
+    --border: 240 8% 20%;
+    --input: 240 8% 15%;
+    --ring: 267 100% 70%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 267 100% 70%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 267 100% 70%;
   }
 }
 
@@ -104,5 +118,46 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+/* Liquid Glass Utilities */
+@layer utilities {
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-glass);
+  }
+  
+  .glass-card-hover {
+    transition: all 0.3s ease;
+  }
+  
+  .glass-card-hover:hover {
+    background: var(--glass-hover);
+    box-shadow: var(--shadow-glass), var(--glow-primary);
+  }
+  
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .glass-button {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+  }
+  
+  .glass-button:hover {
+    background: var(--glass-hover);
+    box-shadow: var(--glow-primary);
+    transform: translateY(-2px);
   }
 }

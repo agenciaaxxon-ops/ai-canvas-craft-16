@@ -1,17 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Wand2, Sparkles, Zap } from "lucide-react";
+import { Wand2, Zap } from "lucide-react";
+import fotosmart from "@/assets/fotosmart-logo.svg";
 
 const Landing = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary">
+    <div className="min-h-screen bg-gradient-hero">
       {/* Header */}
-      <header className="border-b border-border/40">
+      <header className="glass-card border-b border-border/40">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">Estúdio AI</span>
-          </div>
+          <Link to="/" className="flex items-center gap-3 group">
+            <img src={fotosmart} alt="FotoSmart" className="h-10 w-10 transition-transform group-hover:scale-110" />
+            <span className="text-2xl font-bold gradient-text">FotoSmart</span>
+          </Link>
           <div className="flex gap-3">
             <Button variant="ghost" asChild>
               <Link to="/sign-in">Login</Link>
@@ -26,14 +27,14 @@ const Landing = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm">
             <Zap className="h-4 w-4 text-primary" />
             <span className="text-muted-foreground">Geração de imagens com IA</span>
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold leading-tight">
             Transforme fotos de produtos em{" "}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <span className="gradient-text">
               obras de arte
             </span>
           </h1>
@@ -59,9 +60,9 @@ const Landing = () => {
       {/* Features */}
       <section className="container mx-auto px-4 py-20">
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="p-6 rounded-xl bg-card border border-border/40 hover:border-primary/40 transition-all">
-            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-              <Wand2 className="h-6 w-6 text-primary" />
+          <div className="glass-card glass-card-hover p-6 rounded-xl">
+            <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
+              <Wand2 className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-xl font-semibold mb-2">IA Avançada</h3>
             <p className="text-muted-foreground">
@@ -69,9 +70,9 @@ const Landing = () => {
             </p>
           </div>
 
-          <div className="p-6 rounded-xl bg-card border border-border/40 hover:border-primary/40 transition-all">
-            <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
-              <Zap className="h-6 w-6 text-accent" />
+          <div className="glass-card glass-card-hover p-6 rounded-xl">
+            <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
+              <Zap className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-xl font-semibold mb-2">Rápido e Simples</h3>
             <p className="text-muted-foreground">
@@ -79,9 +80,9 @@ const Landing = () => {
             </p>
           </div>
 
-          <div className="p-6 rounded-xl bg-card border border-border/40 hover:border-primary/40 transition-all">
-            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-              <Sparkles className="h-6 w-6 text-primary" />
+          <div className="glass-card glass-card-hover p-6 rounded-xl">
+            <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
+              <img src={fotosmart} alt="FotoSmart" className="h-6 w-6" />
             </div>
             <h3 className="text-xl font-semibold mb-2">Qualidade Pro</h3>
             <p className="text-muted-foreground">
