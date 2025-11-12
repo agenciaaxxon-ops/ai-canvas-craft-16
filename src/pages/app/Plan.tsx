@@ -40,6 +40,7 @@ export default function Plan() {
   const [stats, setStats] = useState<GenerationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -50,10 +51,10 @@ export default function Plan() {
     if (success === 'true') {
       toast({
         title: "Pagamento processado!",
-        description: "Sua assinatura será ativada em alguns instantes. Pode levar até 1 minuto.",
+        description: "Verificando ativação da assinatura...",
       });
       setSearchParams({});
-      setTimeout(() => loadData(), 2000);
+      startPollingActivation();
     } else if (canceled === 'true') {
       toast({
         title: "Pagamento cancelado",
@@ -63,6 +64,84 @@ export default function Plan() {
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
+
+  const startPollingActivation = async () => {
+    setActivating(true);
+    const maxAttempts = 12; // 12 attempts * 5 seconds = 60 seconds
+    let attempts = 0;
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        setActivating(false);
+        toast({
+          title: "Aguardando confirmação",
+          description: "O pagamento pode levar alguns minutos para ser confirmado. Use o botão 'Já paguei' para verificar manualmente.",
+        });
+        return;
+      }
+
+      attempts++;
+      console.log(`Polling attempt ${attempts}/${maxAttempts}`);
+
+      try {
+        const { data, error } = await supabase.functions.invoke('confirm-abacate-billing');
+        
+        if (error) throw error;
+
+        console.log('Activation check result:', data);
+
+        if (data?.activated) {
+          setActivating(false);
+          await loadData();
+          toast({
+            title: "Assinatura ativada!",
+            description: "Seu plano foi ativado com sucesso.",
+          });
+          return;
+        }
+
+        // Continue polling
+        setTimeout(poll, 5000);
+      } catch (error: any) {
+        console.error('Error checking activation:', error);
+        setTimeout(poll, 5000);
+      }
+    };
+
+    poll();
+  };
+
+  const handleManualActivation = async () => {
+    setActivating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('confirm-abacate-billing');
+      
+      if (error) throw error;
+
+      if (data?.activated) {
+        await loadData();
+        toast({
+          title: "Assinatura ativada!",
+          description: "Seu plano foi ativado com sucesso.",
+        });
+      } else {
+        toast({
+          title: "Pagamento pendente",
+          description: data?.message || "O pagamento ainda não foi confirmado.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error activating:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível verificar o pagamento. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setActivating(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -233,9 +312,26 @@ export default function Plan() {
                 <p className="text-muted-foreground mb-4">
                   Você não possui uma assinatura ativa.
                 </p>
-                <Button onClick={() => setShowSubscriptionModal(true)} size="lg">
-                  Ver Planos Disponíveis
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button onClick={() => setShowSubscriptionModal(true)} size="lg">
+                    Ver Planos Disponíveis
+                  </Button>
+                  <Button 
+                    onClick={handleManualActivation} 
+                    variant="outline" 
+                    size="lg"
+                    disabled={activating}
+                  >
+                    {activating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verificando...
+                      </>
+                    ) : (
+                      'Já paguei, ativar agora'
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

@@ -9,3 +9,6 @@ verify_jwt = true
 [functions.abacate-webhook]
 verify_jwt = false
 
+[functions.confirm-abacate-billing]
+verify_jwt = true
+
