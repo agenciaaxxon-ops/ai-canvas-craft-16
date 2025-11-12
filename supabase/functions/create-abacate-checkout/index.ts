@@ -85,7 +85,7 @@ serve(async (req) => {
     const tokenOnly = (abacateApiKey as string)
       .toString()
       .replace(/[\r\n]/g, '')
-      .replace([^\x20-\x7E]/g, '')
+      .replace(/[^\x20-\x7E]/g, '')
       .trim();
     const bearerValue = `Bearer ${tokenOnly}`;
 
