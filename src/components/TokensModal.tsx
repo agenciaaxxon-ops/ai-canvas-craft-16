@@ -126,9 +126,7 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          {products
-            .filter(product => product.name !== 'Plano de Teste')
-            .map((product) => {
+          {products.map((product) => {
               const isUltra = product.name.includes('Ultra');
               return (
                 <div
