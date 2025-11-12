@@ -148,7 +148,7 @@ const AppLayout = () => {
                     <TooltipTrigger asChild>
                       <div className="glass-card flex items-center gap-2 px-4 py-2 rounded-lg cursor-default">
                         <span className="font-bold text-lg gradient-text">{profile?.token_balance ?? 0}</span>
-                        <span className="text-xs text-muted-foreground">imagens</span>
+                        <span className="text-xs text-muted-foreground">créditos</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>

@@ -89,7 +89,7 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
         
         toast({
           title: "QR Code PIX gerado!",
-          description: "Uma nova aba foi aberta com o código PIX. Pague para receber seus créditos.",
+          description: `Uma nova aba foi aberta. Pague para receber ${product?.tokens_granted} créditos.`,
         });
         
         onOpenChange(false);
@@ -115,49 +115,61 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Image className="h-6 w-6 text-primary" />
-            {insufficientTokens ? "Créditos Insuficientes!" : "Comprar Créditos de Imagem"}
+            {insufficientTokens ? "Créditos Insuficientes!" : "Comprar Pacotes de Créditos"}
           </DialogTitle>
           <DialogDescription>
             {insufficientTokens 
-              ? "Você não tem créditos suficientes para gerar esta imagem. Escolha um plano abaixo para continuar:"
-              : "Escolha um plano e recarregue seus créditos para continuar gerando imagens incríveis!"
+              ? "Você não tem créditos suficientes para gerar esta imagem. Escolha um pacote abaixo para continuar:"
+              : "Escolha um pacote e recarregue seus créditos para continuar gerando imagens incríveis! Cada geração consome 1 crédito."
             }
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors"
-            >
-              <div>
-                <h3 className="font-semibold text-lg">{product.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {product.tokens_granted} {product.tokens_granted === 1 ? "imagem" : "imagens"}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-2xl font-bold">
-                  R$ {(product.price_in_cents / 100).toFixed(2)}
-                </span>
-                <Button
-                  onClick={() => handlePurchase(product.id)}
-                  disabled={loading}
-                  variant={selectedProduct === product.id ? "default" : "outline"}
+          {products
+            .filter(product => product.name !== 'Plano de Teste')
+            .map((product) => {
+              const isUltra = product.name.includes('Ultra');
+              return (
+                <div
+                  key={product.id}
+                  className={`relative flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors ${
+                    isUltra ? 'border-primary bg-primary/5' : ''
+                  }`}
                 >
-                  {loading && selectedProduct === product.id ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    "Comprar"
+                  {isUltra && (
+                    <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
+                      MELHOR CUSTO-BENEFÍCIO
+                    </div>
                   )}
-                </Button>
-              </div>
-            </div>
-          ))}
+                  <div>
+                    <h3 className="font-semibold text-lg">{product.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {product.tokens_granted} {product.tokens_granted === 1 ? "crédito" : "créditos"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-2xl font-bold">
+                      R$ {(product.price_in_cents / 100).toFixed(2)}
+                    </span>
+                    <Button
+                      onClick={() => handlePurchase(product.id)}
+                      disabled={loading}
+                      variant={selectedProduct === product.id ? "default" : "outline"}
+                    >
+                      {loading && selectedProduct === product.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processando...
+                        </>
+                      ) : (
+                        "Comprar"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
         </div>
 
         {products.length === 0 && (

@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Image, CheckCircle2, Calendar, Zap } from "lucide-react";
+import { Loader2, Zap, ShoppingCart } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { TokensModal } from "@/components/TokensModal";
 
 interface Purchase {
   id: string;
@@ -19,28 +19,15 @@ interface Purchase {
   };
 }
 
-interface GenerationStats {
-  total_generations: number;
-}
-
-interface SubscriptionInfo {
-  plan: string | null;
-  status: string;
-  end_date: string | null;
-  monthly_usage: number;
-  is_unlimited: boolean;
-  limit: number;
-}
-
 export default function Plan() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [tokenBalance, setTokenBalance] = useState(0);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [stats, setStats] = useState<GenerationStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showTokensModal, setShowTokensModal] = useState(false);
   const [activating, setActivating] = useState(false);
+  const requiredPurchase = searchParams.get('required') === 'true';
 
   useEffect(() => {
     loadData();
@@ -51,7 +38,7 @@ export default function Plan() {
     if (success === 'true') {
       toast({
         title: "Pagamento processado!",
-        description: "Verificando ativação da assinatura...",
+        description: "Verificando adição de créditos...",
       });
       setSearchParams({});
       startPollingActivation();
@@ -63,11 +50,16 @@ export default function Plan() {
       });
       setSearchParams({});
     }
-  }, [searchParams, setSearchParams]);
+
+    // Abrir modal automaticamente se required=true
+    if (requiredPurchase) {
+      setShowTokensModal(true);
+    }
+  }, [searchParams, setSearchParams, requiredPurchase]);
 
   const startPollingActivation = async () => {
     setActivating(true);
-    const maxAttempts = 12; // 12 attempts * 5 seconds = 60 seconds
+    const maxAttempts = 12;
     let attempts = 0;
 
     const poll = async () => {
@@ -94,13 +86,12 @@ export default function Plan() {
           setActivating(false);
           await loadData();
           toast({
-            title: "Assinatura ativada!",
-            description: "Seu plano foi ativado com sucesso.",
+            title: "Créditos adicionados!",
+            description: `${data.credits_added} créditos foram adicionados à sua conta.`,
           });
           return;
         }
 
-        // Continue polling
         setTimeout(poll, 5000);
       } catch (error: any) {
         console.error('Error checking activation:', error);
@@ -121,8 +112,8 @@ export default function Plan() {
       if (data?.activated) {
         await loadData();
         toast({
-          title: "Assinatura ativada!",
-          description: "Seu plano foi ativado com sucesso.",
+          title: "Créditos adicionados!",
+          description: `${data.credits_added} créditos foram adicionados à sua conta.`,
         });
       } else {
         toast({
@@ -150,29 +141,15 @@ export default function Plan() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load subscription info
+      // Load token balance
       const { data: profile } = await supabase
         .from("profiles")
-        .select("subscription_plan, subscription_status, subscription_end_date, monthly_usage")
+        .select("token_balance")
         .eq("id", user.id)
         .single();
 
       if (profile) {
-        // Get product details
-        const { data: product } = await supabase
-          .from("products")
-          .select("is_unlimited, tokens_granted")
-          .ilike("name", `%${profile.subscription_plan || ''}%`)
-          .single();
-
-        setSubscription({
-          plan: profile.subscription_plan,
-          status: profile.subscription_status,
-          end_date: profile.subscription_end_date,
-          monthly_usage: profile.monthly_usage || 0,
-          is_unlimited: product?.is_unlimited || false,
-          limit: product?.tokens_granted || 0,
-        });
+        setTokenBalance(profile.token_balance);
       }
 
       // Load purchases
@@ -191,14 +168,6 @@ export default function Plan() {
 
       if (purchasesError) throw purchasesError;
       setPurchases(purchasesData || []);
-
-      // Load generation stats
-      const { count } = await supabase
-        .from("generations")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-
-      setStats({ total_generations: count || 0 });
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
       toast({
@@ -253,144 +222,101 @@ export default function Plan() {
     );
   }
 
-  const isActive = subscription?.status === 'active';
-
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-3xl font-bold">Minha Assinatura</h1>
-          <p className="text-muted-foreground">Gerencie sua assinatura e acompanhe seu uso</p>
+          <h1 className="text-3xl font-bold">Meus Créditos</h1>
+          <p className="text-muted-foreground">Gerencie seus créditos e acompanhe seu histórico</p>
         </div>
 
-        {/* Subscription Status Card */}
-        <Card className={isActive ? "border-primary" : ""}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                Status da Assinatura
-              </CardTitle>
-              <Badge className={isActive ? "bg-green-500" : "bg-gray-500"}>
-                {isActive ? "Ativa" : "Inativa"}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isActive && subscription ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-2xl font-bold">{subscription.plan}</p>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                    <Calendar className="h-4 w-4" />
-                    Renova em {subscription.end_date ? formatDate(subscription.end_date) : 'N/A'}
-                  </p>
-                </div>
-                
-                <div className="pt-4 border-t">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Uso Mensal</span>
-                    <span className="text-sm font-semibold">
-                      {subscription.is_unlimited 
-                        ? `${subscription.monthly_usage} (Ilimitado)` 
-                        : `${subscription.monthly_usage} / ${subscription.limit}`
-                      }
-                    </span>
-                  </div>
-                  {!subscription.is_unlimited && (
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${Math.min((subscription.monthly_usage / subscription.limit) * 100, 100)}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-muted-foreground mb-4">
-                  Você não possui uma assinatura ativa.
+        {/* Required Purchase Banner */}
+        {requiredPurchase && tokenBalance === 0 && (
+          <Card className="border-primary bg-primary/5">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-3">
+                <ShoppingCart className="h-12 w-12 mx-auto text-primary" />
+                <h3 className="text-lg font-semibold">Complete sua primeira compra!</h3>
+                <p className="text-muted-foreground">
+                  Para começar a gerar imagens, você precisa adquirir créditos.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button onClick={() => setShowSubscriptionModal(true)} size="lg">
-                    Ver Planos Disponíveis
-                  </Button>
-                  <Button 
-                    onClick={handleManualActivation} 
-                    variant="outline" 
-                    size="lg"
-                    disabled={activating}
-                  >
-                    {activating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verificando...
-                      </>
-                    ) : (
-                      'Já paguei, ativar agora'
-                    )}
-                  </Button>
-                </div>
+                <Button onClick={() => setShowTokensModal(true)} size="lg" variant="hero">
+                  Ver Pacotes Disponíveis
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Imagens Geradas</CardTitle>
-              <Image className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.total_generations || 0}</div>
-              <p className="text-xs text-muted-foreground">total de gerações</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Este Mês</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{subscription?.monthly_usage || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {subscription?.is_unlimited ? "imagens geradas" : `de ${subscription?.limit || 0} disponíveis`}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Change Plan Button */}
-        {isActive && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Alterar Plano</CardTitle>
-              <CardDescription>
-                Atualize ou cancele sua assinatura a qualquer momento
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={() => setShowSubscriptionModal(true)} variant="outline">
-                Gerenciar Assinatura
-              </Button>
             </CardContent>
           </Card>
         )}
 
+        {/* Balance Card */}
+        <Card className={tokenBalance > 0 ? "border-primary" : ""}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
+                Seu Saldo
+              </CardTitle>
+              {tokenBalance > 0 && (
+                <Badge className="bg-green-500">Ativo</Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <p className="text-5xl font-bold gradient-text">{tokenBalance}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  créditos disponíveis
+                </p>
+              </div>
+              
+              <div className="pt-4 border-t space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  • Cada geração de imagem consome 1 crédito
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  • Créditos não expiram e são cumulativos
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  • Compre mais créditos a qualquer momento
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button onClick={() => setShowTokensModal(true)} size="lg" className="flex-1">
+                  Comprar Mais Créditos
+                </Button>
+                <Button 
+                  onClick={handleManualActivation} 
+                  variant="outline" 
+                  size="lg"
+                  disabled={activating}
+                  className="flex-1"
+                >
+                  {activating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verificando...
+                    </>
+                  ) : (
+                    'Já paguei, verificar agora'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Purchase History */}
         <Card>
           <CardHeader>
-            <CardTitle>Histórico de Pagamentos</CardTitle>
-            <CardDescription>Seus pagamentos mais recentes</CardDescription>
+            <CardTitle>Histórico de Compras</CardTitle>
+            <CardDescription>Suas compras de créditos mais recentes</CardDescription>
           </CardHeader>
           <CardContent>
             {purchases.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                Você ainda não realizou nenhum pagamento.
+                Você ainda não realizou nenhuma compra.
               </div>
             ) : (
               <div className="space-y-4">
@@ -410,7 +336,7 @@ export default function Plan() {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">R$ {(purchase.amount_paid / 100).toFixed(2)}</p>
-                      <p className="text-sm text-muted-foreground">Assinatura Mensal</p>
+                      <p className="text-sm text-muted-foreground">{purchase.tokens_granted} créditos</p>
                     </div>
                   </div>
                 ))}
@@ -420,7 +346,11 @@ export default function Plan() {
         </Card>
       </div>
 
-      <SubscriptionModal open={showSubscriptionModal} onOpenChange={setShowSubscriptionModal} />
+      <TokensModal 
+        open={showTokensModal} 
+        onOpenChange={setShowTokensModal}
+        insufficientTokens={requiredPurchase && tokenBalance === 0}
+      />
     </div>
   );
 }

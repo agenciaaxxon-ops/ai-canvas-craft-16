@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { SubscriptionModal } from "@/components/SubscriptionModal";
+
 import fotosmart from "@/assets/fotosmart-logo.svg";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -46,26 +46,26 @@ const SignUp = () => {
           return;
         }
 
-        // Login bem-sucedido, verificar se tem assinatura
+      // Login bem-sucedido, verificar se tem créditos
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("subscription_status")
+            .select("token_balance")
             .eq("id", user.id)
             .single();
 
-          if (profile?.subscription_status !== 'active') {
+          if (!profile || profile.token_balance === 0) {
             toast({
               title: "Bem-vindo de volta!",
-              description: "Você já tem uma conta. Escolha seu plano para começar a gerar imagens.",
+              description: "Você já tem uma conta. Adquira créditos para começar a gerar imagens.",
             });
             setLoading(false);
-            setShowSubscriptionModal(true);
+            navigate("/app/plan?required=true");
           } else {
             toast({
               title: "Conta já ativa!",
-              description: "Você já tem uma assinatura ativa. Redirecionando...",
+              description: "Você já tem créditos. Redirecionando...",
             });
             setLoading(false);
             navigate("/app");
@@ -82,10 +82,10 @@ const SignUp = () => {
     } else {
       toast({
         title: "Conta criada com sucesso!",
-        description: "Agora escolha seu plano para começar.",
+        description: "Agora adquira créditos para começar.",
       });
       setLoading(false);
-      setShowSubscriptionModal(true);
+      navigate("/app/plan?required=true");
     }
   };
 
@@ -151,14 +151,6 @@ const SignUp = () => {
           </p>
         </form>
 
-        <SubscriptionModal 
-          open={showSubscriptionModal} 
-          onOpenChange={(open) => {
-            setShowSubscriptionModal(open);
-            if (!open) navigate("/app/plan");
-          }}
-          requiredForSignup={true}
-        />
       </div>
     </div>
   );

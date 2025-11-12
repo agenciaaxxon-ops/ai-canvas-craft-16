@@ -198,6 +198,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_tokens: {
+        Args: { p_tokens: number; p_user_id: string }
+        Returns: undefined
+      }
       get_admin_stats: { Args: never; Returns: Json }
       has_role: {
         Args: {

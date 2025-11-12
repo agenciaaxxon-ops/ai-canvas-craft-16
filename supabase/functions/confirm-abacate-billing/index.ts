@@ -124,29 +124,24 @@ serve(async (req) => {
       );
     }
 
-    // Payment confirmed! Activate subscription
-    console.log('Payment confirmed, activating subscription for user:', user.id);
+    // Payment confirmed! Add credits to user
+    console.log('Payment confirmed, adding credits for user:', user.id);
 
     const product = purchase.products;
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 30);
+    
+    // Adicionar créditos ao usuário usando a função add_tokens
+    const { error: addTokensError } = await supabase
+      .rpc('add_tokens', {
+        p_user_id: user.id,
+        p_tokens: product.tokens_granted
+      });
 
-    // Update profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        subscription_status: 'active',
-        subscription_plan: product.name,
-        subscription_end_date: endDate.toISOString(),
-        monthly_usage: 0,
-        monthly_reset_date: new Date().toISOString(),
-      })
-      .eq('id', user.id);
-
-    if (profileError) {
-      console.error('Error updating profile:', profileError);
-      throw profileError;
+    if (addTokensError) {
+      console.error('Error adding tokens:', addTokensError);
+      throw addTokensError;
     }
+
+    console.log(`Added ${product.tokens_granted} credits to user ${user.id}`);
 
     // Update purchase to completed
     const { error: purchaseUpdateError } = await supabase
@@ -158,13 +153,14 @@ serve(async (req) => {
       console.error('Error updating purchase:', purchaseUpdateError);
     }
 
-    console.log('Subscription activated successfully for user:', user.id);
+    console.log('Credits added successfully for user:', user.id);
 
     return new Response(
       JSON.stringify({ 
         activated: true, 
         status: 'activated', 
-        message: 'Assinatura ativada com sucesso!' 
+        message: 'Créditos adicionados com sucesso!',
+        credits_added: product.tokens_granted
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

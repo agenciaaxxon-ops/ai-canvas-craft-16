@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Wand2, Upload, Loader2, Download } from "lucide-react";
-import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { TokensModal } from "@/components/TokensModal";
 import { useSearchParams } from "react-router-dom";
 
 const Generate = () => {
@@ -20,11 +20,14 @@ const Generate = () => {
   const [loading, setLoading] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showTokensModal, setShowTokensModal] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
   useEffect(() => {
+    loadTokenBalance();
+
     const success = searchParams.get("success");
     const canceled = searchParams.get("canceled");
 
@@ -34,6 +37,7 @@ const Generate = () => {
         description: "Seus créditos foram adicionados à sua conta.",
       });
       setSearchParams({});
+      loadTokenBalance();
     } else if (canceled === "true") {
       toast({
         title: "Compra cancelada",
@@ -43,6 +47,21 @@ const Generate = () => {
       setSearchParams({});
     }
   }, [searchParams, setSearchParams, toast]);
+
+  const loadTokenBalance = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("token_balance")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) {
+      setTokenBalance(profile.token_balance);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -119,28 +138,24 @@ const Generate = () => {
           console.warn("Failed to parse error body", e);
         }
         
-        // Check if it's subscription related or AI credits exhaustion
-        if (errorMsg.includes("Assinatura") || 
-            errorMsg.includes("Limite") ||
-            errorMsg.includes("inativa") ||
-            errorMsg.includes("plano")) {
-          isSubscriptionError = true;
-        }
-
+        // Check se é erro de créditos insuficientes
+        const isInsufficientCredits = errorMsg.includes("Saldo de créditos insuficiente") || 
+          anyErr?.context?.body?.error_code === 'INSUFFICIENT_CREDITS';
+        
         const isAICreditsError = /Not enough credits|payment_required|AI gateway/i.test(errorMsg) 
           || anyErr?.context?.body?.type === 'payment_required';
         
-        if (isSubscriptionError) {
-          setShowSubscriptionModal(true);
+        if (isInsufficientCredits) {
+          setShowTokensModal(true);
           setErrorMessage(errorMsg);
           toast({ 
-            title: "Assinatura necessária", 
-            description: errorMsg, 
+            title: "Créditos insuficientes", 
+            description: "Você não tem créditos suficientes. Recarregue para continuar.", 
             variant: "destructive" 
           });
         } else if (isAICreditsError) {
           const friendly = "Serviço de geração temporariamente indisponível (créditos do provedor esgotados). Tente novamente em alguns minutos.";
-          setShowSubscriptionModal(false);
+          setShowTokensModal(false);
           setErrorMessage(friendly);
           toast({
             title: "Serviço indisponível",
@@ -168,9 +183,10 @@ const Generate = () => {
       }
 
       setGeneratedUrl(data.generated_image_url);
+      await loadTokenBalance(); // Atualizar saldo
       toast({
         title: "Imagem gerada com sucesso!",
-        description: "Sua imagem foi criada e salva na galeria",
+        description: "Sua imagem foi criada e salva na galeria. 1 crédito foi consumido.",
       });
 
     } catch (error: any) {
@@ -221,6 +237,32 @@ const Generate = () => {
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left Column - Form */}
         <div className="space-y-6 glass-card p-6 rounded-xl">
+          {/* Balance Display */}
+          <div className="p-4 border rounded-lg bg-background/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Seu saldo:</p>
+                <p className="text-2xl font-bold gradient-text">{tokenBalance} créditos</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Esta geração consumirá</p>
+                <p className="text-lg font-semibold">1 crédito</p>
+              </div>
+            </div>
+            {tokenBalance === 0 && (
+              <div className="mt-3 pt-3 border-t">
+                <Button 
+                  onClick={() => setShowTokensModal(true)} 
+                  variant="outline" 
+                  size="sm"
+                  className="w-full"
+                >
+                  Comprar Créditos
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="file-upload" className="text-base">Imagem Original</Label>
@@ -360,7 +402,11 @@ const Generate = () => {
         </div>
       </div>
 
-      <SubscriptionModal open={showSubscriptionModal} onOpenChange={setShowSubscriptionModal} />
+      <TokensModal 
+        open={showTokensModal} 
+        onOpenChange={setShowTokensModal}
+        insufficientTokens={tokenBalance === 0}
+      />
     </div>
   );
 };

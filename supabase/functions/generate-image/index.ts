@@ -39,50 +39,29 @@ serve(async (req) => {
 
     const { prompt_product, prompt_model, prompt_scene, prompt_observations, original_image_url } = await req.json();
 
-    // CRITICAL: Verify subscription status and usage limits in BACKEND
+    // Verificar se o usuário tem créditos disponíveis
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('subscription_status, subscription_plan, monthly_usage, monthly_reset_date')
+      .select('token_balance')
       .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
       console.error('Error fetching profile:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Erro ao buscar perfil' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Perfil não encontrado' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if subscription is active
-    if (profile.subscription_status !== 'active') {
-      console.log('User does not have active subscription:', profile.subscription_status);
+    // Verificar se tem créditos suficientes
+    if (profile.token_balance <= 0) {
+      console.log('User has insufficient credits:', profile.token_balance);
       return new Response(
-        JSON.stringify({ error: 'Assinatura inativa. Assine um plano para gerar imagens.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get product details to check limits
-    const { data: product, error: productError } = await supabaseClient
-      .from('products')
-      .select('tokens_granted, is_unlimited, name')
-      .eq('name', profile.subscription_plan)
-      .single();
-
-    if (productError || !product) {
-      console.error('Error fetching product:', productError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao buscar detalhes do plano' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check monthly usage limit (unless unlimited plan)
-    if (!product.is_unlimited && profile.monthly_usage >= product.tokens_granted) {
-      console.log('User reached monthly limit:', { usage: profile.monthly_usage, limit: product.tokens_granted });
-      return new Response(
-        JSON.stringify({ error: 'Limite mensal atingido. Faça upgrade ou aguarde a renovação.' }),
+        JSON.stringify({ 
+          error: 'Saldo de créditos insuficiente. Por favor, recarregue.',
+          error_code: 'INSUFFICIENT_CREDITS'
+        }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -303,15 +282,15 @@ serve(async (req) => {
       );
     }
 
-    // Increment monthly usage after successful generation
-    const { error: usageUpdateErr } = await supabaseClient
+    // Decrementar 1 crédito após geração bem-sucedida
+    const { error: updateError } = await supabaseClient
       .from('profiles')
-      .update({ monthly_usage: profile.monthly_usage + 1 })
+      .update({ token_balance: profile.token_balance - 1 })
       .eq('id', user.id);
 
-    if (usageUpdateErr) {
-      console.error('Error updating monthly usage after generation:', usageUpdateErr);
-      // We proceed but log the error; user received value
+    if (updateError) {
+      console.error('Error updating token balance:', updateError);
+      // Prosseguimos mas logamos o erro; usuário já recebeu a imagem
     }
 
     return new Response(
