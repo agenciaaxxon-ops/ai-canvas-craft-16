@@ -83,19 +83,19 @@ serve(async (req) => {
 
     console.log('Checking Abacate billing:', purchaseBillingId);
 
-    // Call Abacate API to check payment status
+    // Call Abacate API to check payment status (correct endpoint)
     const abacateResponse = await fetch(
-      `https://api.abacatepay.com/v1/billing/${purchaseBillingId}`,
+      `https://api.abacatepay.com/v1/pixQrCode/check?id=${purchaseBillingId}`,
       {
         headers: {
           'Authorization': `Bearer ${abacateApiKey}`,
-          'Content-Type': 'application/json',
         },
       }
     );
 
     if (!abacateResponse.ok) {
-      console.error('Abacate API error:', await abacateResponse.text());
+      const errorText = await abacateResponse.text();
+      console.error('Abacate API error:', errorText);
       return new Response(
         JSON.stringify({ 
           activated: false, 
@@ -107,18 +107,23 @@ serve(async (req) => {
     }
 
     const billingData = await abacateResponse.json();
-    console.log('Abacate billing status:', billingData.status);
+    console.log('Abacate billing response:', billingData);
+    
+    // Response format: { data: { status: "PAID" | "PENDING" | "EXPIRED" | "CANCELLED" | "REFUNDED" }, error: null }
+    const paymentStatus = billingData.data?.status;
+    console.log('Payment status:', paymentStatus);
 
-    // Check if paid/approved
-    const paidStatuses = ['PAID', 'APPROVED', 'PAID_OUT', 'COMPLETED'];
-    const isPaid = paidStatuses.includes(billingData.status?.toUpperCase());
+    // Check if paid
+    const isPaid = paymentStatus === 'PAID';
 
     if (!isPaid) {
       return new Response(
         JSON.stringify({ 
           activated: false, 
           status: 'pending', 
-          message: 'Pagamento ainda pendente' 
+          message: paymentStatus === 'EXPIRED' ? 'Pagamento expirado' : 
+                   paymentStatus === 'CANCELLED' ? 'Pagamento cancelado' :
+                   'Pagamento ainda pendente'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
