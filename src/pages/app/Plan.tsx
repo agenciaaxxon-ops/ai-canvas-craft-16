@@ -76,7 +76,10 @@ export default function Plan() {
       console.log(`Polling attempt ${attempts}/${maxAttempts}`);
 
       try {
-        const { data, error } = await supabase.functions.invoke('confirm-abacate-billing');
+        const billingId = sessionStorage.getItem('pending_billing_id');
+        const { data, error } = await supabase.functions.invoke('confirm-abacate-billing', {
+          body: billingId ? { billing_id: billingId } : undefined,
+        });
         
         if (error) throw error;
 
