@@ -14,7 +14,10 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const abacateApiKey = Deno.env.get('ABACATEPAY_API_KEY')!;
+    const mode = (Deno.env.get('ABACATEPAY_MODE') || '').toLowerCase();
+    const apiKeyDev = Deno.env.get('ABACATEPAY_API_KEY_DEV');
+    const apiKeyProd = Deno.env.get('ABACATEPAY_API_KEY');
+    const abacateApiKey = mode === 'dev' ? (apiKeyDev || apiKeyProd) : (apiKeyProd || apiKeyDev);
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
