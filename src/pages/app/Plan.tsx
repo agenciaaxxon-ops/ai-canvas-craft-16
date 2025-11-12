@@ -92,6 +92,7 @@ export default function Plan() {
             title: "Créditos adicionados!",
             description: `${data.credits_added} créditos foram adicionados à sua conta.`,
           });
+          sessionStorage.removeItem('pending_billing_id');
           return;
         }
 
