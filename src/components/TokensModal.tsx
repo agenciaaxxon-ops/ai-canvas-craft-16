@@ -74,7 +74,7 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
       if (error) throw error;
 
       if (data?.checkout_url) {
-        // Store purchase data for conversion tracking
+        // Store purchase data for conversion tracking and manual activation
         if (product) {
           sessionStorage.setItem('pending_purchase', JSON.stringify({
             productId: product.id,
@@ -82,6 +82,9 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
             value: product.price_in_cents / 100,
             tokensGranted: product.tokens_granted,
           }));
+        }
+        if (data.billing_id) {
+          sessionStorage.setItem('pending_billing_id', data.billing_id);
         }
 
         // Abrir em nova aba para facilitar o pagamento PIX

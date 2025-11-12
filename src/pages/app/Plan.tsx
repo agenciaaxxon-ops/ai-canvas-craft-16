@@ -76,7 +76,10 @@ export default function Plan() {
       console.log(`Polling attempt ${attempts}/${maxAttempts}`);
 
       try {
-        const { data, error } = await supabase.functions.invoke('confirm-abacate-billing');
+        const billingId = sessionStorage.getItem('pending_billing_id');
+        const { data, error } = await supabase.functions.invoke('confirm-abacate-billing', {
+          body: billingId ? { billing_id: billingId } : undefined,
+        });
         
         if (error) throw error;
 
@@ -89,6 +92,7 @@ export default function Plan() {
             title: "Créditos adicionados!",
             description: `${data.credits_added} créditos foram adicionados à sua conta.`,
           });
+          sessionStorage.removeItem('pending_billing_id');
           return;
         }
 
@@ -105,7 +109,10 @@ export default function Plan() {
   const handleManualActivation = async () => {
     setActivating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('confirm-abacate-billing');
+      const billingId = sessionStorage.getItem('pending_billing_id');
+      const { data, error } = await supabase.functions.invoke('confirm-abacate-billing', {
+        body: billingId ? { billing_id: billingId } : undefined,
+      });
       
       if (error) throw error;
 
@@ -115,6 +122,7 @@ export default function Plan() {
           title: "Créditos adicionados!",
           description: `${data.credits_added} créditos foram adicionados à sua conta.`,
         });
+        sessionStorage.removeItem('pending_billing_id');
       } else {
         toast({
           title: "Pagamento pendente",
