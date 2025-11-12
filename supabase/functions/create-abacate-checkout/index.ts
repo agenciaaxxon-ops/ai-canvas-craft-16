@@ -69,10 +69,13 @@ serve(async (req) => {
 
     const userEmail = profile?.email || user.email;
 
-    // Initialize Abacate Pay API
-    const abacateApiKey = Deno.env.get('ABACATEPAY_API_KEY');
+    // Initialize Abacate Pay API (supports dev/prod via env)
+    const mode = (Deno.env.get('ABACATEPAY_MODE') || '').toLowerCase();
+    const apiKeyDev = Deno.env.get('ABACATEPAY_API_KEY_DEV');
+    const apiKeyProd = Deno.env.get('ABACATEPAY_API_KEY');
+    const abacateApiKey = mode === 'dev' ? (apiKeyDev || apiKeyProd) : (apiKeyProd || apiKeyDev);
     if (!abacateApiKey) {
-      console.error('ABACATEPAY_API_KEY not configured');
+      console.error('ABACATEPAY API key not configured (ABACATEPAY_API_KEY or ABACATEPAY_API_KEY_DEV)');
       return new Response(
         JSON.stringify({ error: 'Configuração de pagamento ausente' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
