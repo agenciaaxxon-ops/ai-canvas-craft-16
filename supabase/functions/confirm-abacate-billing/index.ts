@@ -84,47 +84,75 @@ serve(async (req) => {
     const purchase = purchases[0];
     const purchaseBillingId = purchase.abacate_billing_id;
 
-    console.log('Checking Abacate billing:', purchaseBillingId);
+    // Try multiple provider endpoints to resolve payment status reliably
+    const headers = { 'Authorization': `Bearer ${abacateApiKey}`, 'Accept': 'application/json' };
 
-    // Call Abacate API to check payment status (correct endpoint)
-    const abacateResponse = await fetch(
-      `https://api.abacatepay.com/v1/pixQrCode/check?id=${purchaseBillingId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${abacateApiKey}`,
-        },
+    async function tryFetch(url: string) {
+      try {
+        const res = await fetch(url, { headers });
+        if (!res.ok) {
+          const t = await res.text();
+          console.warn('Abacate API non-200:', res.status, url, t);
+          return null;
+        }
+        return await res.json();
+      } catch (e) {
+        console.error('Abacate API fetch error:', url, e);
+        return null;
       }
-    );
+    }
 
-    if (!abacateResponse.ok) {
-      const errorText = await abacateResponse.text();
-      console.error('Abacate API error:', errorText);
+    let paymentStatus: string | null = null;
+
+    // 1) Preferred: list payments and find our billing id
+    const list1 = await tryFetch(`https://api.abacatepay.com/v1/payment/list?limit=100`);
+    if (list1?.data && Array.isArray(list1.data)) {
+      const found = list1.data.find((b: any) => b?.id === purchaseBillingId);
+      if (found?.status) paymentStatus = (found.status as string).toUpperCase();
+    }
+
+    // 2) Fallback: list billings (some SDKs expose this path)
+    if (!paymentStatus) {
+      const list2 = await tryFetch(`https://api.abacatepay.com/v1/billing/list?limit=100`);
+      if (list2?.data && Array.isArray(list2.data)) {
+        const found = list2.data.find((b: any) => b?.id === purchaseBillingId);
+        if (found?.status) paymentStatus = (found.status as string).toUpperCase();
+      }
+    }
+
+    // 3) Last resort: if we somehow have a Pix QRCode id saved (not a URL), try the check endpoint
+    if (!paymentStatus) {
+      const possiblePixId = (purchase.pix_qr_code && typeof purchase.pix_qr_code === 'string' && !purchase.pix_qr_code.startsWith('http'))
+        ? purchase.pix_qr_code as string
+        : null;
+      if (possiblePixId) {
+        const check = await tryFetch(`https://api.abacatepay.com/v1/pixQrCode/check?id=${possiblePixId}`);
+        if (check?.data?.status) paymentStatus = (check.data.status as string).toUpperCase();
+      }
+    }
+
+    console.log('Resolved payment status:', paymentStatus || 'UNKNOWN');
+
+    // If we still don't know, keep as pending
+    if (!paymentStatus) {
       return new Response(
         JSON.stringify({ 
           activated: false, 
           status: 'pending', 
-          message: 'Não foi possível consultar o status no momento' 
+          message: 'Aguardando confirmação do provedor'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const billingData = await abacateResponse.json();
-    console.log('Abacate billing response:', billingData);
-    
-    // Response format: { data: { status: "PAID" | "PENDING" | "EXPIRED" | "CANCELLED" | "REFUNDED" }, error: null }
-    const paymentStatus = billingData.data?.status;
-    console.log('Payment status:', paymentStatus);
-
-    // Check if paid
-    const isPaid = paymentStatus === 'PAID';
+    const isPaid = paymentStatus === 'PAID' || paymentStatus === 'APPROVED' || paymentStatus === 'PAID_OUT';
 
     if (!isPaid) {
       return new Response(
         JSON.stringify({ 
           activated: false, 
-          status: 'pending', 
-          message: paymentStatus === 'EXPIRED' ? 'Pagamento expirado' : 
+          status: paymentStatus.toLowerCase(), 
+          message: paymentStatus === 'EXPIRED' ? 'Pagamento expirado' :
                    paymentStatus === 'CANCELLED' ? 'Pagamento cancelado' :
                    'Pagamento ainda pendente'
         }),
