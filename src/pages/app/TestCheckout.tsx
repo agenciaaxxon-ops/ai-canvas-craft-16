@@ -44,12 +44,21 @@ export default function TestCheckout() {
         }
 
         if (data?.checkout_url) {
-          window.open(data.checkout_url, '_blank');
-          toast({
-            title: "Checkout de teste iniciado",
-            description: "Pague R$ 1,00 para receber 5 créditos de teste.",
-          });
-          navigate('/app/plan');
+          // Detectar mobile para abrir na mesma aba
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          
+          if (isMobile) {
+            // No mobile, abrir na mesma aba
+            window.location.href = data.checkout_url;
+          } else {
+            // No desktop, abrir em nova aba
+            window.open(data.checkout_url, '_blank');
+            toast({
+              title: "Checkout de teste iniciado",
+              description: "Pague R$ 1,00 para receber 5 créditos de teste.",
+            });
+            navigate('/app/plan');
+          }
         } else {
           throw new Error("URL de checkout não retornada");
         }
