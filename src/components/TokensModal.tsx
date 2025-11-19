@@ -87,13 +87,21 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
           sessionStorage.setItem('pending_billing_id', data.billing_id);
         }
 
-        // Abrir em nova aba para facilitar o pagamento PIX
-        window.open(data.checkout_url, '_blank');
+        // Detectar mobile para abrir na mesma aba
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
-        toast({
-          title: "QR Code PIX gerado!",
-          description: `Uma nova aba foi aberta. Pague para receber ${product?.tokens_granted} créditos.`,
-        });
+        if (isMobile) {
+          // No mobile, abrir na mesma aba
+          window.location.href = data.checkout_url;
+        } else {
+          // No desktop, abrir em nova aba
+          window.open(data.checkout_url, '_blank');
+          
+          toast({
+            title: "QR Code PIX gerado!",
+            description: `Uma nova aba foi aberta. Pague para receber ${product?.tokens_granted} créditos.`,
+          });
+        }
         
         onOpenChange(false);
       } else {
