@@ -73,29 +73,25 @@ export function TokensModal({ open, onOpenChange, insufficientTokens = false }: 
 
       if (error) throw error;
 
-      if (data?.checkout_url) {
-        // Store purchase data for conversion tracking and manual activation
-        if (product) {
-          sessionStorage.setItem('pending_purchase', JSON.stringify({
-            productId: product.id,
-            productName: product.name,
-            value: product.price_in_cents / 100,
-            tokensGranted: product.tokens_granted,
-          }));
-        }
+        if (data?.checkout_url) {
+        // Store billing_id for return page
         if (data.billing_id) {
           sessionStorage.setItem('pending_billing_id', data.billing_id);
         }
+
+        // Criar URL de retorno com billing_id
+        const returnUrl = `${window.location.origin}/app/checkout-return?billing_id=${data.billing_id}`;
+        const checkoutUrlWithReturn = `${data.checkout_url}&return_url=${encodeURIComponent(returnUrl)}`;
 
         // Detectar mobile para abrir na mesma aba
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
         if (isMobile) {
           // No mobile, abrir na mesma aba
-          window.location.href = data.checkout_url;
+          window.location.href = checkoutUrlWithReturn;
         } else {
           // No desktop, abrir em nova aba
-          window.open(data.checkout_url, '_blank');
+          window.open(checkoutUrlWithReturn, '_blank');
           
           toast({
             title: "QR Code PIX gerado!",

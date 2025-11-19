@@ -14,6 +14,7 @@ import Plan from "./pages/app/Plan";
 import Admin from "./pages/app/Admin";
 import PurchaseSuccess from "./pages/app/PurchaseSuccess";
 import TestCheckout from "./pages/app/TestCheckout";
+import CheckoutReturn from "./pages/app/CheckoutReturn";
 import NotFound from "./pages/NotFound";
 import { CookieConsent } from "./components/CookieConsent";
 
@@ -59,6 +60,7 @@ const App = () => {
               <Route path="gallery" element={<Gallery />} />
               <Route path="plan" element={<Plan />} />
               <Route path="test-checkout" element={<TestCheckout />} />
+              <Route path="checkout-return" element={<CheckoutReturn />} />
               <Route path="admin" element={<Admin />} />
               <Route path="purchase-success" element={<PurchaseSuccess />} />
             </Route>
