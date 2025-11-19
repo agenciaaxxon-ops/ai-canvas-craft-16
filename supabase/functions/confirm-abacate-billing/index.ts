@@ -7,208 +7,164 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const mode = (Deno.env.get('ABACATEPAY_MODE') || '').toLowerCase();
-    const apiKeyDev = Deno.env.get('ABACATEPAY_API_KEY_DEV');
-    const apiKeyProd = Deno.env.get('ABACATEPAY_API_KEY');
-    const abacateApiKey = mode === 'dev' ? (apiKeyDev || apiKeyProd) : (apiKeyProd || apiKeyDev);
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const abacateApiKey = Deno.env.get('ABACATEPAY_API_KEY')!;
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Create Supabase client with service role
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Authenticate user
+    // Get user from request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error('Missing Authorization header');
       return new Response(
-        JSON.stringify({ activated: false, status: 'unauthorized', message: 'Não autorizado' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
-    if (authError || !user) {
-      console.error('Auth error:', authError);
+    if (userError || !user) {
+      console.error('User error:', userError);
       return new Response(
-        JSON.stringify({ activated: false, status: 'unauthorized', message: 'Não autorizado' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Checking billing for user:', user.id);
+    const { billing_id } = await req.json();
 
-    // Parse body for billing_id (optional)
-    let billingId: string | null = null;
-    try {
-      const body = await req.json();
-      billingId = body.billing_id || null;
-    } catch {
-      // No body or invalid JSON, proceed without billing_id
+    if (!billing_id) {
+      return new Response(
+        JSON.stringify({ error: 'billing_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Find pending purchase
-    let purchaseQuery = supabase
+    console.log('Confirming billing ID:', billing_id, 'for user:', user.id);
+
+    // Check if purchase exists and belongs to user
+    const { data: purchase, error: purchaseError } = await supabase
       .from('purchases')
       .select('*, products(*)')
+      .eq('abacate_billing_id', billing_id)
       .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .not('abacate_billing_id', 'is', null);
+      .single();
 
-    if (billingId) {
-      purchaseQuery = purchaseQuery.eq('abacate_billing_id', billingId);
-    } else {
-      purchaseQuery = purchaseQuery.order('created_at', { ascending: false }).limit(1);
-    }
-
-    const { data: purchases, error: purchaseError } = await purchaseQuery;
-
-    if (purchaseError || !purchases || purchases.length === 0) {
-      console.log('No pending purchase found for user:', user.id);
+    if (purchaseError || !purchase) {
+      console.error('Purchase not found:', purchaseError);
       return new Response(
         JSON.stringify({ 
-          activated: false, 
-          status: 'not_found', 
-          message: 'Nenhuma compra pendente encontrada' 
+          success: false, 
+          message: 'Compra não encontrada ou não pertence a você' 
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const purchase = purchases[0];
-    const purchaseBillingId = purchase.abacate_billing_id;
-
-    // Try multiple provider endpoints to resolve payment status reliably
-    const headers = { 'Authorization': `Bearer ${abacateApiKey}`, 'Accept': 'application/json' };
-
-    async function tryFetch(url: string) {
-      try {
-        const res = await fetch(url, { headers });
-        if (!res.ok) {
-          const t = await res.text();
-          console.warn('Abacate API non-200:', res.status, url, t);
-          return null;
-        }
-        return await res.json();
-      } catch (e) {
-        console.error('Abacate API fetch error:', url, e);
-        return null;
-      }
-    }
-
-    let paymentStatus: string | null = null;
-
-    // 1) Preferred: list payments and find our billing id
-    const list1 = await tryFetch(`https://api.abacatepay.com/v1/payment/list?limit=100`);
-    if (list1?.data && Array.isArray(list1.data)) {
-      const found = list1.data.find((b: any) => b?.id === purchaseBillingId);
-      if (found?.status) paymentStatus = (found.status as string).toUpperCase();
-    }
-
-    // 2) Fallback: list billings (some SDKs expose this path)
-    if (!paymentStatus) {
-      const list2 = await tryFetch(`https://api.abacatepay.com/v1/billing/list?limit=100`);
-      if (list2?.data && Array.isArray(list2.data)) {
-        const found = list2.data.find((b: any) => b?.id === purchaseBillingId);
-        if (found?.status) paymentStatus = (found.status as string).toUpperCase();
-      }
-    }
-
-    // 3) Last resort: if we somehow have a Pix QRCode id saved (not a URL), try the check endpoint
-    if (!paymentStatus) {
-      const possiblePixId = (purchase.pix_qr_code && typeof purchase.pix_qr_code === 'string' && !purchase.pix_qr_code.startsWith('http'))
-        ? purchase.pix_qr_code as string
-        : null;
-      if (possiblePixId) {
-        const check = await tryFetch(`https://api.abacatepay.com/v1/pixQrCode/check?id=${possiblePixId}`);
-        if (check?.data?.status) paymentStatus = (check.data.status as string).toUpperCase();
-      }
-    }
-
-    console.log('Resolved payment status:', paymentStatus || 'UNKNOWN');
-
-    // If we still don't know, keep as pending
-    if (!paymentStatus) {
+    // If already completed, return success
+    if (purchase.status === 'completed') {
+      console.log('Purchase already completed:', billing_id);
       return new Response(
         JSON.stringify({ 
-          activated: false, 
-          status: 'pending', 
-          message: 'Aguardando confirmação do provedor'
+          success: true, 
+          message: 'Pagamento já foi processado',
+          tokens_granted: purchase.tokens_granted 
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const isPaid = paymentStatus === 'PAID' || paymentStatus === 'APPROVED' || paymentStatus === 'PAID_OUT';
+    // Check payment status with Abacate Pay
+    const abacateUrl = `https://api.abacatepay.com/v1/billing/info/${billing_id}`;
+    console.log('Checking payment status at:', abacateUrl);
 
-    if (!isPaid) {
+    const abacateResponse = await fetch(abacateUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${abacateApiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!abacateResponse.ok) {
+      const errorText = await abacateResponse.text();
+      console.error('Abacate Pay error:', abacateResponse.status, errorText);
       return new Response(
         JSON.stringify({ 
-          activated: false, 
-          status: paymentStatus.toLowerCase(), 
-          message: paymentStatus === 'EXPIRED' ? 'Pagamento expirado' :
-                   paymentStatus === 'CANCELLED' ? 'Pagamento cancelado' :
-                   'Pagamento ainda pendente'
+          success: false, 
+          message: 'Erro ao consultar status do pagamento' 
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Payment confirmed! Add credits to user
-    console.log('Payment confirmed, adding credits for user:', user.id);
+    const billingInfo = await abacateResponse.json();
+    console.log('Billing info:', JSON.stringify(billingInfo, null, 2));
 
-    const product = purchase.products;
-    
-    // Adicionar créditos ao usuário usando a função add_tokens
-    const { error: addTokensError } = await supabase
-      .rpc('add_tokens', {
+    // Check if payment was approved
+    if (billingInfo.status === 'PAID' || billingInfo.status === 'APPROVED') {
+      console.log('Payment confirmed, processing tokens...');
+
+      // Add tokens to user
+      const { error: rpcError } = await supabase.rpc('add_tokens', {
         p_user_id: user.id,
-        p_tokens: product.tokens_granted
+        p_tokens: purchase.tokens_granted
       });
 
-    if (addTokensError) {
-      console.error('Error adding tokens:', addTokensError);
-      throw addTokensError;
+      if (rpcError) {
+        console.error('Error adding tokens:', rpcError);
+        throw new Error('Erro ao adicionar créditos');
+      }
+
+      // Update purchase status
+      const { error: updateError } = await supabase
+        .from('purchases')
+        .update({ status: 'completed' })
+        .eq('id', purchase.id);
+
+      if (updateError) {
+        console.error('Error updating purchase:', updateError);
+        throw new Error('Erro ao atualizar status da compra');
+      }
+
+      console.log('✓ Payment processed successfully:', billing_id);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Créditos ativados com sucesso!',
+          tokens_granted: purchase.tokens_granted 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      console.log('Payment not confirmed yet. Status:', billingInfo.status);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: `Pagamento ainda não confirmado. Status: ${billingInfo.status}`,
+          status: billingInfo.status
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-
-    console.log(`Added ${product.tokens_granted} credits to user ${user.id}`);
-
-    // Update purchase to completed
-    const { error: purchaseUpdateError } = await supabase
-      .from('purchases')
-      .update({ status: 'completed' })
-      .eq('id', purchase.id);
-
-    if (purchaseUpdateError) {
-      console.error('Error updating purchase:', purchaseUpdateError);
-    }
-
-    console.log('Credits added successfully for user:', user.id);
-
-    return new Response(
-      JSON.stringify({ 
-        activated: true, 
-        status: 'activated', 
-        message: 'Créditos adicionados com sucesso!',
-        credits_added: product.tokens_granted
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error: any) {
     console.error('Error in confirm-abacate-billing:', error);
     return new Response(
       JSON.stringify({ 
-        activated: false, 
-        status: 'error', 
-        message: 'Erro ao processar confirmação',
-        error: error.message 
+        error: error.message || 'Internal server error',
+        success: false 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
