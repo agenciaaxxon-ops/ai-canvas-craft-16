@@ -140,7 +140,7 @@ serve(async (req) => {
     async function callAI(withImage: boolean) {
       const contentParts = await buildContent(withImage);
       return await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
         {
           method: 'POST',
           headers: {
