@@ -80,7 +80,7 @@ serve(async (req) => {
     console.log('generate-image original_image_url:', original_image_url);
 
     const observationsText = prompt_observations ? ` Observações adicionais: ${prompt_observations}.` : '';
-    const prompt = `Gere uma foto de produto de alta qualidade em formato 9:16 (vertical): ${prompt_product}. Modelo: ${prompt_model}. Cenário: ${prompt_scene}.${observationsText} Estilo realista, iluminação suave, resolução 2K, aspect ratio 9:16.`;
+    const prompt = `Gere uma foto de produto de alta qualidade: ${prompt_product}. Modelo: ${prompt_model}. Cenário: ${prompt_scene}.${observationsText} Estilo realista, iluminação suave.`;
 
     // Helper function to convert image URL to base64
     async function fetchImageAsBase64(url: string): Promise<string> {
@@ -150,7 +150,13 @@ serve(async (req) => {
             contents: [{
               parts: contentParts
             }],
-            generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+            generationConfig: {
+              responseModalities: ['TEXT', 'IMAGE'],
+              imageConfig: {
+                aspectRatio: '9:16',
+                imageSize: '2K'
+              }
+            }
           }),
         }
       );
