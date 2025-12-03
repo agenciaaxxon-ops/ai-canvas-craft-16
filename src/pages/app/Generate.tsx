@@ -6,9 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Wand2, Upload, Loader2, Download, Zap } from "lucide-react";
+import { Wand2, Upload, Loader2, Download, Zap, Clock } from "lucide-react";
 import { TokensModal } from "@/components/TokensModal";
 import { useSearchParams } from "react-router-dom";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+type QualityOption = '1K' | '2K';
+
+const QUALITY_OPTIONS: { value: QualityOption; label: string; time: string; description: string }[] = [
+  { value: '1K', label: 'Rápido', time: '~15-30s', description: 'Modelo otimizado para velocidade' },
+  { value: '2K', label: 'Alta Qualidade', time: '~60-90s', description: 'Resolução 2K, mais detalhes' },
+];
 
 const Generate = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -22,6 +30,7 @@ const Generate = () => {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [showTokensModal, setShowTokensModal] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
+  const [quality, setQuality] = useState<QualityOption>('1K');
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
@@ -115,7 +124,7 @@ const Generate = () => {
           prompt_scene: scene,
           prompt_observations: observations,
           original_image_url: originalSignedUrl,
-          quality: '1K',
+          quality: quality,
         },
       });
 
@@ -146,6 +155,11 @@ const Generate = () => {
         const isAICreditsError = /Not enough credits|payment_required|AI gateway/i.test(errorMsg) 
           || anyErr?.context?.body?.type === 'payment_required';
         
+        // Check se é erro de timeout
+        const isTimeoutError = errorMsg.includes("Timeout") || 
+          errorMsg.includes("demorou muito") ||
+          errorMsg.includes("timed out");
+        
         if (isInsufficientCredits) {
           setShowTokensModal(true);
           setErrorMessage(errorMsg);
@@ -154,20 +168,31 @@ const Generate = () => {
             description: "Você não tem créditos suficientes. Recarregue para continuar.", 
             variant: "destructive" 
           });
+        } else if (isTimeoutError) {
+          // Mensagem amigável para timeout
+          const friendlyMsg = quality === '2K' 
+            ? "A geração em alta qualidade demorou muito. Tente usar a opção 'Rápido' ou aguarde alguns minutos e tente novamente."
+            : "Não foi possível gerar a imagem no momento. Por favor, tente novamente mais tarde.";
+          setErrorMessage("");
+          toast({
+            title: "Não foi possível gerar a imagem",
+            description: friendlyMsg,
+            variant: "destructive",
+          });
         } else if (isAICreditsError) {
-          const friendly = "Serviço de geração temporariamente indisponível (créditos do provedor esgotados). Tente novamente em alguns minutos.";
+          const friendly = "Serviço de geração temporariamente indisponível. Tente novamente em alguns minutos.";
           setShowTokensModal(false);
-          setErrorMessage(friendly);
+          setErrorMessage("");
           toast({
             title: "Serviço indisponível",
             description: friendly,
             variant: "destructive",
           });
         } else {
-          setErrorMessage(errorMsg);
+          setErrorMessage("");
           toast({ 
             title: "Erro ao gerar imagem", 
-            description: errorMsg, 
+            description: "Não foi possível gerar a imagem. Tente novamente ou use a geração rápida.", 
             variant: "destructive" 
           });
         }
@@ -343,12 +368,38 @@ const Generate = () => {
               </p>
             </div>
 
-            <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium">Geração rápida</span>
-                <span className="text-xs text-muted-foreground ml-auto">~15-30s</span>
-              </div>
+            <div className="space-y-3">
+              <Label>Qualidade da Imagem</Label>
+              <RadioGroup
+                value={quality}
+                onValueChange={(value) => setQuality(value as QualityOption)}
+                className="grid grid-cols-2 gap-3"
+              >
+                {QUALITY_OPTIONS.map((option) => (
+                  <div key={option.value}>
+                    <RadioGroupItem
+                      value={option.value}
+                      id={`quality-${option.value}`}
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor={`quality-${option.value}`}
+                      className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 cursor-pointer transition-all"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {option.value === '1K' ? (
+                          <Zap className="h-4 w-4 text-yellow-500" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-blue-500" />
+                        )}
+                        <span className="font-medium">{option.label}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                      <span className="text-xs text-muted-foreground mt-1">{option.time}</span>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
             </div>
 
             <Button
