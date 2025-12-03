@@ -37,7 +37,7 @@ serve(async (req) => {
       );
     }
 
-    const { prompt_product, prompt_model, prompt_scene, prompt_observations, original_image_url } = await req.json();
+    const { prompt_product, prompt_model, prompt_scene, prompt_observations, original_image_url, quality = '1K' } = await req.json();
 
     // Verificar se o usuário tem créditos disponíveis
     const { data: profile, error: profileError } = await supabaseClient
@@ -137,29 +137,50 @@ serve(async (req) => {
       return parts;
     };
 
+    // Validate quality parameter
+    const validQualities = ['1K', '2K'];
+    const imageSize = validQualities.includes(quality) ? quality : '1K';
+    console.log('Image generation quality:', imageSize);
+
     async function callAI(withImage: boolean) {
       const contentParts = await buildContent(withImage);
-      return await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: contentParts
-            }],
-            generationConfig: {
-              responseModalities: ['TEXT', 'IMAGE'],
-              imageConfig: {
-                aspectRatio: '9:16',
-                imageSize: '2K'
+      
+      const controller = new AbortController();
+      const timeoutMs = imageSize === '2K' ? 120000 : 60000; // 2min for 2K, 1min for 1K
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: contentParts
+              }],
+              generationConfig: {
+                responseModalities: ['TEXT', 'IMAGE'],
+                imageConfig: {
+                  aspectRatio: '9:16',
+                  imageSize: imageSize
+                }
               }
-            }
-          }),
+            }),
+            signal: controller.signal
+          }
+        );
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error: unknown) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error('Timeout: A geração demorou muito. Tente novamente ou use uma qualidade menor.');
         }
-      );
+        throw error;
+      }
     }
 
     let aiResponse = await callAI(true);

@@ -6,9 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Wand2, Upload, Loader2, Download } from "lucide-react";
+import { Wand2, Upload, Loader2, Download, Clock, Zap } from "lucide-react";
 import { TokensModal } from "@/components/TokensModal";
 import { useSearchParams } from "react-router-dom";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+type QualityOption = '1K' | '2K';
+
+const QUALITY_OPTIONS: { value: QualityOption; label: string; time: string; description: string }[] = [
+  { value: '1K', label: 'Rápido', time: '~20-30s', description: 'Qualidade padrão' },
+  { value: '2K', label: 'Alta Qualidade', time: '~40-60s', description: 'Resolução 2K' },
+];
 
 const Generate = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -22,6 +30,7 @@ const Generate = () => {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [showTokensModal, setShowTokensModal] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
+  const [quality, setQuality] = useState<QualityOption>('1K');
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
@@ -115,6 +124,7 @@ const Generate = () => {
           prompt_scene: scene,
           prompt_observations: observations,
           original_image_url: originalSignedUrl,
+          quality: quality,
         },
       });
 
@@ -340,6 +350,40 @@ const Generate = () => {
               <p className="text-xs text-muted-foreground text-right">
                 {observations.length}/100
               </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Qualidade da Imagem</Label>
+              <RadioGroup
+                value={quality}
+                onValueChange={(value) => setQuality(value as QualityOption)}
+                className="grid grid-cols-2 gap-3"
+              >
+                {QUALITY_OPTIONS.map((option) => (
+                  <div key={option.value}>
+                    <RadioGroupItem
+                      value={option.value}
+                      id={`quality-${option.value}`}
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor={`quality-${option.value}`}
+                      className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 cursor-pointer transition-all"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {option.value === '1K' ? (
+                          <Zap className="h-4 w-4 text-yellow-500" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-blue-500" />
+                        )}
+                        <span className="font-medium">{option.label}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                      <span className="text-xs text-muted-foreground mt-1">{option.time}</span>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
             </div>
 
             <Button
