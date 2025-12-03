@@ -140,18 +140,21 @@ serve(async (req) => {
     // Validate quality parameter
     const validQualities = ['1K', '2K'];
     const imageSize = validQualities.includes(quality) ? quality : '1K';
-    console.log('Image generation quality:', imageSize);
+    
+    // Use faster model for 1K, high quality model for 2K
+    const modelName = imageSize === '2K' ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image-preview';
+    console.log('Image generation quality:', imageSize, 'model:', modelName);
 
     async function callAI(withImage: boolean) {
       const contentParts = await buildContent(withImage);
       
       const controller = new AbortController();
-      const timeoutMs = imageSize === '2K' ? 120000 : 60000; // 2min for 2K, 1min for 1K
+      const timeoutMs = imageSize === '2K' ? 120000 : 50000; // 2min for 2K, 50s for 1K
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       try {
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GOOGLE_AI_STUDIO_API_KEY}`,
           {
             method: 'POST',
             headers: {
@@ -163,10 +166,12 @@ serve(async (req) => {
               }],
               generationConfig: {
                 responseModalities: ['TEXT', 'IMAGE'],
-                imageConfig: {
-                  aspectRatio: '9:16',
-                  imageSize: imageSize
-                }
+                ...(imageSize === '2K' && {
+                  imageConfig: {
+                    aspectRatio: '9:16',
+                    imageSize: '2K'
+                  }
+                })
               }
             }),
             signal: controller.signal
