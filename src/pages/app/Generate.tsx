@@ -14,8 +14,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 type QualityOption = '1K' | '2K';
 
 const QUALITY_OPTIONS: { value: QualityOption; label: string; time: string; description: string }[] = [
-  { value: '1K', label: 'Rápido', time: '~20-30s', description: 'Qualidade padrão' },
-  { value: '2K', label: 'Alta Qualidade', time: '~40-60s', description: 'Resolução 2K' },
+  { value: '1K', label: 'Rápido', time: '~15-30s', description: 'Modelo otimizado para velocidade' },
+  { value: '2K', label: 'Alta Qualidade', time: '~60-90s', description: 'Resolução 2K, mais detalhes' },
 ];
 
 const Generate = () => {
