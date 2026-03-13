@@ -360,11 +360,11 @@ const Generate = () => {
                 placeholder="Ex: foco no produto, foto de celular, fundo desfocado"
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
-                maxLength={100}
+                maxLength={1000}
                 className="resize-none glass-card"
               />
               <p className="text-xs text-muted-foreground text-right">
-                {observations.length}/100
+                {observations.length}/1000
               </p>
             </div>
 
